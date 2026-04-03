@@ -5,10 +5,10 @@
 # Uncomment and adapt the checks below to match your project's tooling.
 # Remove checks that don't apply. Keep this hook fast — slow hooks get bypassed.
 
-# echo "Running tests before push..."
-# your-test-command || exit 1
+echo "Running tests before push..."
+make test || exit 1
 
-# echo "Running build check..."
-# your-build-command || exit 1
+echo "Running build check..."
+make build || exit 1
 
 exit 0
