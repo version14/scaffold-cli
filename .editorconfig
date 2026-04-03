@@ -15,4 +15,4 @@ trim_trailing_whitespace = false
 indent_style = tab
 
 [*.{py,go,java,kt}]
-indent_size = 4
+indent_size = 2
