@@ -1,4 +1,4 @@
-.PHONY: help fmt lint build scaffold test clean vet run install-tools validate
+.PHONY: help fmt lint build scaffold test clean vet run install-tools validate commit-lint hooks
 
 # Colors
 RED := \033[0;31m
@@ -105,6 +105,15 @@ clean: ## Remove build artifacts
 	$(call print_success,"Clean complete")
 	@echo ""
 
+hooks: ## Activate git hooks for commit linting
+	$(call print_header,"SETUP HOOKS","                       ")
+	$(call print_info,"Activating git hooks...")
+	@git config core.hooksPath .githooks
+	@chmod +x .githooks/commit-msg .githooks/pre-push
+	$(call print_success,"Git hooks activated")
+	@echo "$(BLUE)→ Commit messages will now be validated locally$(RESET)"
+	@echo ""
+
 install-tools: ## Install required development tools
 	$(call print_header,"INSTALL-TOOLS","                   ")
 	$(call print_info,"Installing development tools...")
@@ -113,6 +122,40 @@ install-tools: ## Install required development tools
 	@echo "  • Installing goimports..."
 	@$(GO) install golang.org/x/tools/cmd/goimports@latest > /dev/null 2>&1
 	$(call print_success,"Tools installed")
+	@echo ""
+
+commit-lint: ## Validate commit messages (shows format rules)
+	$(call print_header,"COMMIT LINT","                      ")
+	@echo ""
+	@echo "$(BOLD)Conventional Commits Format$(RESET)"
+	@echo "$(BLUE)────────────────────────────────────────────────$(RESET)"
+	@echo ""
+	@echo "  $(CYAN)<type>(<scope>): <description>$(RESET)"
+	@echo ""
+	@echo "$(YELLOW)Allowed types:$(RESET)"
+	@echo "  • feat     — new feature"
+	@echo "  • fix      — bug fix"
+	@echo "  • docs     — documentation"
+	@echo "  • style    — code style (formatting, semicolons, etc)"
+	@echo "  • refactor — code refactoring without feature change"
+	@echo "  • perf     — performance improvement"
+	@echo "  • test     — test changes"
+	@echo "  • chore    — dependency or tooling change"
+	@echo "  • ci       — CI/CD changes"
+	@echo "  • revert   — revert a previous commit"
+	@echo ""
+	@echo "$(YELLOW)Rules:$(RESET)"
+	@echo "  • Type and scope are lowercase"
+	@echo "  • Scope is optional"
+	@echo "  • Description starts with lowercase"
+	@echo "  • No period at end"
+	@echo "  • Max 100 characters"
+	@echo ""
+	@echo "$(YELLOW)Examples:$(RESET)"
+	@echo "  feat: add user authentication"
+	@echo "  fix(api): handle null responses"
+	@echo "  docs(readme): update setup instructions"
+	@echo "  refactor(generators): extract common logic"
 	@echo ""
 
 validate: fmt vet lint test ## Run full validation suite

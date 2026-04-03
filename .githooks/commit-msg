@@ -2,22 +2,95 @@
 # Validates commit messages against the Conventional Commits spec.
 # Activate with: git config core.hooksPath .githooks
 
+set -e
+
 MSG=$(cat "$1")
 
-# Strip comments and trailing whitespace
-SUBJECT=$(echo "$MSG" | sed '/^#/d' | head -1 | sed 's/[[:space:]]*$//')
+# Strip git comments (lines starting with #) to get the actual message
+SUBJECT=$(echo "$MSG" | grep -v '^#' | head -1)
 
-PATTERN='^(feat|fix|refactor|test|docs|chore|perf|ci)(\(.+\))?(!)?: .{1,72}$'
+# Remove trailing whitespace
+SUBJECT=$(echo "$SUBJECT" | sed 's/[[:space:]]*$//')
 
-if ! echo "$SUBJECT" | grep -qE "$PATTERN"; then
+# Validate commit message format: type(scope): subject
+# Types: feat, fix, docs, style, refactor, perf, test, chore, ci, revert
+# Scope is optional
+# Subject must be lowercase, start with lowercase, no period at end
+# Max length: 100 characters for full header, 72 for subject line
+
+TYPE_PATTERN='feat|fix|docs|style|refactor|perf|test|chore|ci|revert'
+SCOPE_PATTERN='[a-z0-9\-]*'
+
+# Full pattern: type(scope): subject
+# Where scope is optional
+if echo "$SUBJECT" | grep -qE "^(${TYPE_PATTERN})(\(${SCOPE_PATTERN}\))?: .+\$"; then
+  # Check length
+  LENGTH=$(echo "$SUBJECT" | wc -c)
+  if [ "$LENGTH" -gt 101 ]; then
+    echo ""
+    echo "  ✗ Commit message rejected — header exceeds 100 characters."
+    echo ""
+    echo "  Length: $LENGTH (max: 100)"
+    echo "  Your message: $SUBJECT"
+    echo ""
+    exit 1
+  fi
+
+  # Check subject line (after ": ") is not empty and doesn't end with period
+  SUBJECT_TEXT=$(echo "$SUBJECT" | sed 's/^[^:]*: //')
+  if [ -z "$SUBJECT_TEXT" ]; then
+    echo ""
+    echo "  ✗ Commit message rejected — missing description after colon."
+    echo ""
+    exit 1
+  fi
+
+  if echo "$SUBJECT_TEXT" | grep -q '\.$'; then
+    echo ""
+    echo "  ✗ Commit message rejected — subject should not end with a period."
+    echo ""
+    echo "  Your message: $SUBJECT"
+    echo ""
+    exit 1
+  fi
+
+  # Check first letter after colon+space is lowercase
+  FIRST_CHAR=$(echo "$SUBJECT_TEXT" | sed 's/^.//')
+  if ! echo "$SUBJECT_TEXT" | grep -qE '^[a-z]'; then
+    echo ""
+    echo "  ✗ Commit message rejected — subject must start with lowercase letter."
+    echo ""
+    echo "  Your message: $SUBJECT"
+    echo ""
+    exit 1
+  fi
+
+  exit 0
+else
   echo ""
-  echo "  Commit message rejected — does not follow Conventional Commits."
+  echo "  ✗ Commit message rejected — does not follow Conventional Commits."
   echo ""
-  echo "  Format : <type>(<scope>): <description>"
+  echo "  Format: <type>(<scope>): <description>"
   echo "  Example: feat(auth): add refresh token rotation"
   echo ""
-  echo "  Allowed types: feat | fix | refactor | test | docs | chore | perf | ci"
-  echo "  Subject must be lowercase and under 72 characters."
+  echo "  Allowed types:"
+  echo "    • feat     — new feature"
+  echo "    • fix      — bug fix"
+  echo "    • docs     — documentation"
+  echo "    • style    — code style (formatting, semicolons, etc)"
+  echo "    • refactor — code refactoring without feature change"
+  echo "    • perf     — performance improvement"
+  echo "    • test     — test changes"
+  echo "    • chore    — dependency or tooling change"
+  echo "    • ci       — CI/CD changes"
+  echo "    • revert   — revert a previous commit"
+  echo ""
+  echo "  Rules:"
+  echo "    • Type and scope are lowercase"
+  echo "    • Scope is optional"
+  echo "    • Subject starts with lowercase"
+  echo "    • No period at end"
+  echo "    • Max 100 characters"
   echo ""
   echo "  Your message: $SUBJECT"
   echo ""

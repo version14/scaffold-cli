@@ -72,73 +72,148 @@ Open a **Feature Request** issue with:
 
 Features that align with the project's scope and architecture are more likely to be accepted.
 
-### Activating the commit-msg hook
+### Activating git hooks
 
-A shell-based hook validates commit messages locally against the Conventional Commits spec. Activate it once after cloning — no runtime or dependencies required:
+Git hooks validate commit messages locally and prevent commits that don't follow our conventions. Activate them once after cloning:
 
+**Using Make (recommended):**
 ```bash
-git config core.hooksPath .githooks
+make hooks
 ```
 
-Commit messages are also validated in CI on every PR via GitHub Actions.
+**Or manually:**
+```bash
+git config core.hooksPath .githooks
+chmod +x .githooks/commit-msg
+```
+
+Commit messages are validated:
+- **Locally** — before commit (via `.githooks/commit-msg` hook)
+- **In CI** — on every PR (via GitHub Actions with commitlint)
+
+**View commit rules anytime:**
+```bash
+make commit-lint
+```
 
 ### Submitting Code Changes
 
-1. Create a branch from `main`:
+1. **Create a branch** from `main`:
    ```bash
    git checkout main
    git pull upstream main
    git checkout -b feat/your-feature-name
    ```
-2. Make your changes following the [code style](#code-style) guidelines
-3. Write or update tests
-4. Run the validation suite locally (see [Development Setup](docs/getting-started/README.md))
-5. Commit following [commit conventions](#commit-conventions)
-6. Push and open a Pull Request
+
+2. **Make your changes** following the [code style](#code-style) guidelines
+
+3. **Write or update tests** as needed
+
+4. **Run validation locally**:
+   ```bash
+   make validate
+   ```
+   This runs: format → vet → lint → tests (with nice colored output)
+
+5. **Commit following [commit conventions](#commit-conventions)**:
+   ```bash
+   git commit -m "feat(scope): your message"
+   ```
+   Your commit message will be validated automatically by the local hook.
+
+6. **Push and open a Pull Request**:
+   ```bash
+   git push origin feat/your-feature-name
+   ```
+
+**Before submitting the PR, verify:**
+- [ ] All validations pass (`make validate`)
+- [ ] Commits follow Conventional Commits (`make commit-lint` to review rules)
+- [ ] Tests pass (`make test`)
+- [ ] Code is formatted (`make fmt`)
+- [ ] Documentation is updated if needed
 
 ---
 
 ## Commit Conventions
 
-We follow **Conventional Commits**. Each commit message should be:
+We follow **Conventional Commits** format. Messages are validated both locally (via git hook) and in CI.
+
+### Format
 
 ```
-<type>(<scope>): <short description>
+<type>(<scope>): <description>
 
 [optional body]
 
 [optional footer]
 ```
 
-**Types:**
+### Types
 
 | Type       | When to use                           |
 |------------|---------------------------------------|
 | `feat`     | New feature or behavior               |
 | `fix`      | Bug fix                               |
-| `refactor` | Code change with no behavior change   |
-| `test`     | Adding or updating tests              |
 | `docs`     | Documentation only                    |
-| `chore`    | Tooling, dependencies, config         |
+| `style`    | Code style (formatting, semicolons)   |
+| `refactor` | Code change with no behavior change   |
 | `perf`     | Performance improvement               |
+| `test`     | Adding or updating tests              |
+| `chore`    | Tooling, dependencies, config         |
 | `ci`       | CI/CD changes                         |
+| `revert`   | Revert a previous commit              |
 
-**Scope** (optional): the module or area affected, e.g. `auth`, `api`, `ui`, `docker`.
+**Scope** (optional): the module or area affected, e.g. `auth`, `api`, `generators`, `docker`.
 
-**Examples:**
+### Examples
+
+✅ **Good examples:**
 ```
-feat(auth): add refresh token revocation on logout
-fix(api): return 409 when resource already exists
-refactor(core): extract validation to separate utility
-test(auth): add unit tests for login use case
-docs(setup): add environment variable reference
-chore(deps): upgrade dependencies
+feat: add user authentication
+feat(api): add rate limiting middleware
+fix(generators): handle empty project spec
+docs(readme): update installation steps
+refactor(survey): extract validation logic
+test: add test for spec validation
+chore: update dependencies
+ci: add commitlint to GitHub Actions
 ```
 
-**Rules:**
+❌ **Bad examples (will be rejected):**
+```
+Add user auth              # Missing type
+FEAT: add auth             # Type not lowercase
+feat: Add auth.            # Description starts with uppercase, ends with period
+feat(api): this is a very long commit message that exceeds the 100 character limit  # Too long
+```
+
+### Rules
+
+- **Type is required** and must be lowercase
+- **Scope is optional** (lowercase) and indicates what part changed
+- **Description is required**, starts with lowercase, no period at end
+- **Max 100 characters** for the full header (subject line)
 - Use the **imperative mood** ("add" not "adds" or "added")
-- Keep the first line under **72 characters**
 - Reference issues in the footer: `Closes #42`, `Fixes #17`
+
+### Local Validation
+
+Your commits are validated automatically before creation. If the message is invalid, the commit is rejected with a helpful error message.
+
+**To see validation rules:**
+```bash
+make commit-lint
+```
+
+**If a commit is rejected, fix and try again:**
+```bash
+git commit --amend -m "feat(scope): corrected message"
+```
+
+### CI Validation
+
+Commits are also validated in GitHub Actions using commitlint with the `.commitlintrc.json` configuration. This ensures consistency across all contributions.
 
 ---
 

@@ -22,11 +22,13 @@ This guide walks you through setting up Scaffold CLI for local development.
    cd scaffold-cli
    ```
 
-2. **Activate the commit-msg hook** (one-time, after cloning)
+2. **Activate git hooks** (one-time, after cloning)
 
    ```bash
-   git config core.hooksPath .githooks
+   make hooks
    ```
+
+   This activates commit message linting. Your commits will now be validated locally before being created.
 
 3. **Download dependencies**
 
@@ -41,6 +43,55 @@ This guide walks you through setting up Scaffold CLI for local development.
    ```
 
    This starts an interactive questionnaire that will scaffold a new project.
+
+---
+
+## Commit Message Convention
+
+We follow **Conventional Commits** format. Commit messages are validated automatically.
+
+### Format
+
+```
+<type>(<scope>): <description>
+```
+
+### Examples
+
+```bash
+git commit -m "feat: add new generator"
+git commit -m "fix(api): handle empty responses"
+git commit -m "docs(readme): update installation steps"
+git commit -m "refactor(generators): extract common logic"
+```
+
+### Types
+
+- `feat` — new feature
+- `fix` — bug fix
+- `docs` — documentation
+- `style` — code style (formatting, etc)
+- `refactor` — refactoring
+- `perf` — performance
+- `test` — tests
+- `chore` — dependencies/tooling
+- `ci` — CI/CD
+- `revert` — revert commit
+
+**Rules:**
+- Type is required (lowercase)
+- Scope is optional (lowercase)
+- Description starts with lowercase
+- No period at end
+- Max 100 characters
+
+View commit rules anytime:
+
+```bash
+make commit-lint
+```
+
+For details, see [CONTRIBUTING.md](../../CONTRIBUTING.md).
 
 ---
 

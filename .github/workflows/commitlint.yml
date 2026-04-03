@@ -3,6 +3,8 @@ name: Commitlint
 on:
   pull_request:
     branches: [main]
+  push:
+    branches: [main]
 
 jobs:
   commitlint:
@@ -13,8 +15,10 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Check commit messages
+      - name: Validate commit messages
         uses: wagoid/commitlint-github-action@v6
         with:
+          configFile: .commitlintrc.json
           failOnWarnings: false
           helpURL: https://www.conventionalcommits.org
+          token: ${{ secrets.GITHUB_TOKEN }}
