@@ -65,25 +65,34 @@ See [docs/getting-started](docs/getting-started/README.md) for the full setup gu
 
 ## Development
 
+We use a **Makefile** for convenient command execution with clean, colored output:
+
 ```bash
-# Build the CLI binary
-go build -o scaffold ./cmd/scaffold
+# See all available commands
+make help
 
-# Run the CLI directly (interactive questionnaire)
-go run ./cmd/scaffold new
+# Build and run the CLI
+make scaffold
 
-# Run tests
-go test ./...
+# Run validation suite (fmt → vet → lint → test)
+make validate
 
-# Run tests with coverage
-go test -v -coverprofile=coverage.out ./...
-go tool cover -html=coverage.out
+# Individual commands
+make build       # Build to bin/scaffold
+make test        # Run tests
+make fmt         # Format code
+make lint        # Lint code
+make clean       # Remove build artifacts
+```
 
-# Format code
-go fmt ./...
+**Or use raw Go commands:**
 
-# Lint code
-golangci-lint run ./...
+```bash
+go build -o scaffold ./cmd/scaffold          # Build
+go run ./cmd/scaffold                         # Run
+go test ./...                                 # Test
+go fmt ./...                                  # Format
+golangci-lint run ./...                       # Lint
 ```
 
 ---

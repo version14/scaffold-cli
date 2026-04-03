@@ -29,9 +29,27 @@ See [Architecture Documentation](../../.claude/ressources/Architecture.md) for d
 
 ## Development
 
+**Q: What's the easiest way to build and run?**
+Use the Makefile:
+```bash
+make scaffold    # Build and run with colored output
+make run         # Run without building
+make build       # Just build to bin/scaffold
+```
+
+See all available commands:
+```bash
+make help
+```
+
 **Q: How do I run a specific test?**
 ```bash
 go test -v ./internal/generators -run TestAPIGenerator
+```
+
+Or use the test target:
+```bash
+make test
 ```
 
 **Q: How do I debug a generator?**
@@ -47,7 +65,18 @@ dlv debug ./cmd/scaffold
 - Check if your system's temp directory has enough space
 
 **Q: The build fails with module not found errors.**
-Pull the latest `main` and run `go mod download` — a dependency may have been updated.
+Pull the latest `main` and run:
+```bash
+go mod download
+```
+
+**Q: How do I validate all my changes before submitting a PR?**
+Run the full validation suite:
+```bash
+make validate
+```
+
+This runs: formatting → vet → lint → tests (all with nice colored output)
 
 **Q: How do I add a new generator?**
 See [Adding a Generator](#adding-a-generator) below.
@@ -91,11 +120,28 @@ Yes for new features and bug fixes. Documentation-only PRs are exempt.
 Maintainers merge PRs once they have one approving review and all CI checks are green.
 
 **Q: What's the PR submission checklist?**
-- [ ] Tests pass: `go test ./...`
-- [ ] Code is formatted: `go fmt ./...`
-- [ ] Linter passes: `golangci-lint run ./...`
+Run this before submitting:
+```bash
+make validate
+```
+
+This checks:
+- [ ] Code is formatted
+- [ ] Vet passes (suspicious constructs)
+- [ ] Linter passes (style violations)
+- [ ] Tests pass
+
+Then verify:
 - [ ] Documentation is updated
 - [ ] Commit messages follow conventions (see [Code Style](guidelines/code-style.md))
+
+**Manual commands (if needed):**
+```bash
+go fmt ./...           # Format
+go vet ./...           # Vet check
+golangci-lint run ./...  # Lint
+go test ./...          # Tests
+```
 
 ---
 

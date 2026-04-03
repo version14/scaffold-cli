@@ -6,21 +6,28 @@ This document defines the code style and formatting conventions for Scaffold CLI
 
 ## Tooling
 
-We use standard Go tooling to enforce code quality:
+We use standard Go tooling to enforce code quality. **Use the Makefile for easy access:**
 
 ```bash
-# Format code (auto-fixes formatting)
-go fmt ./...
+# Run ALL checks in sequence (recommended)
+make validate
 
-# Lint code (requires golangci-lint)
-golangci-lint run ./...
+# Individual checks:
+make fmt      # Format code
+make vet      # Vet check
+make lint     # Lint code
+make test     # Run tests with race detector
+```
 
-# Vet code for suspicious constructs
-go vet ./...
+**Or use raw Go commands:**
 
-# Check for code coverage
-go test -coverprofile=coverage.out ./...
-go tool cover -html=coverage.out
+```bash
+go fmt ./...              # Format code
+go vet ./...              # Vet for suspicious constructs
+golangci-lint run ./...   # Lint code
+go test -race ./...       # Run tests with race detector
+go test -coverprofile=coverage.out ./...  # Check coverage
+go tool cover -html=coverage.out          # View coverage report
 ```
 
 All checks must pass before a PR can be merged. The CI pipeline enforces this automatically with:
@@ -185,36 +192,46 @@ import (
 
 ## Running the Full Validation Suite
 
-Before pushing or submitting a PR, run the complete validation suite:
+**Recommended: Use the Makefile**
+
+Before pushing or submitting a PR, run:
 
 ```bash
-# 1. Format code
-go fmt ./...
-
-# 2. Import organization
-goimports -w ./...
-
-# 3. Vet for suspicious constructs
-go vet ./...
-
-# 4. Lint
-golangci-lint run ./...
-
-# 5. Run tests with coverage and race detector
-go test -race -coverprofile=coverage.out ./...
-
-# 6. Check coverage
-go tool cover -func=coverage.out
-
-# 7. Build
-go build -o scaffold ./cmd/scaffold
+make validate
 ```
 
-**All checks must pass before pushing.** Quick version:
+This executes in sequence with pretty colored output:
+1. ✓ Formats code
+2. ✓ Vet checks
+3. ✓ Linting
+4. ✓ Tests with race detector
+
+**Or run individual checks:**
 
 ```bash
-go fmt ./... && goimports -w ./... && go vet ./... && \
-golangci-lint run ./... && go test -race ./... && \
-go build -o scaffold ./cmd/scaffold && \
+make fmt       # Step 1
+make vet       # Step 2
+make lint      # Step 3
+make test      # Step 4
+make build     # Step 5
+```
+
+**Raw Go commands (if needed):**
+
+```bash
+# Complete validation
+go fmt ./... && \
+go vet ./... && \
+golangci-lint run ./... && \
+go test -race -coverprofile=coverage.out ./... && \
+go build -o bin/scaffold ./cmd/scaffold && \
 echo "✓ All checks passed!"
+```
+
+**Check code coverage:**
+
+```bash
+go test -coverprofile=coverage.out ./...
+go tool cover -html=coverage.out   # Opens in browser
+go tool cover -func=coverage.out   # Shows percentages
 ```

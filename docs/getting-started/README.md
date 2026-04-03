@@ -67,28 +67,47 @@ For details, see the [Architecture Documentation](../../.claude/ressources/Archi
 
 ## Common Commands
 
+We use a `Makefile` for convenient command execution. All commands produce clean, colored output:
+
 ```bash
-# Build the CLI binary
+# Show available commands
+make help
+
+# Build and run the interactive CLI
+make scaffold
+
+# Build the binary into bin/scaffold
+make build
+
+# Run CLI directly (without building)
+make run
+
+# Format code
+make fmt
+
+# Lint code
+make lint
+
+# Run tests with race detector
+make test
+
+# Run full validation (fmt → vet → lint → test)
+make validate
+
+# Clean up build artifacts
+make clean
+
+# Install development tools (golangci-lint, goimports)
+make install-tools
+```
+
+**Or use raw Go commands:**
+
+```bash
 go build -o scaffold ./cmd/scaffold
-
-# Run the interactive CLI
-go run ./cmd/scaffold new
-
-# Run all tests
+go run ./cmd/scaffold
 go test ./...
-
-# Run tests with coverage
-go test -v -coverprofile=coverage.out ./...
-go tool cover -html=coverage.out
-
-# Format all Go code
 go fmt ./...
-
-# Lint code (requires golangci-lint)
-golangci-lint run ./...
-
-# Run linter and tests together
-go fmt ./... && golangci-lint run ./... && go test ./...
 ```
 
 ---
