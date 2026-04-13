@@ -1,15 +1,15 @@
-# Getting Started
+# Getting Started — dot
 
-This guide walks you through setting up Scaffold CLI for local development.
+This guide walks you through setting up dot for local development.
 
 ---
 
 ## Prerequisites
 
-| Tool | Version | Install                               |
-|------|---------|---------------------------------------|
-| go   | 1.26+  | [Install](https://go.dev/doc/install) |
-| git  | Latest  | [Install](https://git-scm.com/)       |
+| Tool | Version | Install |
+|------|---------|---------|
+| go   | 1.26+   | [go.dev/doc/install](https://go.dev/doc/install) |
+| git  | Latest  | [git-scm.com](https://git-scm.com/) |
 
 ---
 
@@ -18,8 +18,8 @@ This guide walks you through setting up Scaffold CLI for local development.
 1. **Clone the repository**
 
    ```bash
-   git clone https://github.com/version14/scaffold-cli.git
-   cd scaffold-cli
+   git clone https://github.com/version14/dot.git
+   cd dot
    ```
 
 2. **Activate git hooks** (one-time, after cloning)
@@ -28,7 +28,7 @@ This guide walks you through setting up Scaffold CLI for local development.
    make hooks
    ```
 
-   This activates commit message linting. Your commits will now be validated locally before being created.
+   This activates commit message linting. Your commits will be validated locally before being created.
 
 3. **Download dependencies**
 
@@ -36,19 +36,19 @@ This guide walks you through setting up Scaffold CLI for local development.
    go mod download
    ```
 
-4. **Run the CLI**
+4. **Run dot**
 
    ```bash
-   go run ./cmd/scaffold new
+   go run ./cmd/dot init
    ```
 
-   This starts an interactive questionnaire that will scaffold a new project.
+   This launches the interactive TUI to scaffold a new project.
 
 ---
 
 ## Commit Message Convention
 
-We follow **Conventional Commits** format. Commit messages are validated automatically.
+We follow **Conventional Commits** format. Messages are validated automatically.
 
 ### Format
 
@@ -60,7 +60,7 @@ We follow **Conventional Commits** format. Commit messages are validated automat
 
 ```bash
 git commit -m "feat: add new generator"
-git commit -m "fix(api): handle empty responses"
+git commit -m "fix(pipeline): handle empty file ops"
 git commit -m "docs(readme): update installation steps"
 git commit -m "refactor(generators): extract common logic"
 ```
@@ -97,40 +97,42 @@ For details, see [CONTRIBUTING.md](../../CONTRIBUTING.md).
 
 ## Project Structure
 
-Here's what you'll work with:
-
 ```
-scaffold-cli/
-├── cmd/scaffold/           # CLI entrypoint
+dot/
+├── cmd/dot/                  ← CLI entry point
+│   ├── main.go               ← thin: os.Exit(root.Execute())
+│   ├── root.go               ← root cobra command
+│   ├── init.go               ← dot init (TUI → Spec → generators)
+│   ├── new.go                ← dot new <type> <name>
+│   ├── version.go            ← dot version
+│   └── help.go               ← dot help (reads .dot/config.json)
 ├── internal/
-│   ├── survey/            # Interactive questionnaire
-│   ├── spec/              # Project specification
-│   ├── generators/        # Composable generators
-│   ├── template/          # Template rendering
-│   └── merge/             # Smart file merging
-├── templates/             # Template files
-└── go.mod                 # Module definition
+│   ├── spec/                 ← Spec, ProjectSpec, CoreConfig, ModuleSpec
+│   ├── generator/            ← Generator interface, Registry, FileOp
+│   ├── project/              ← ProjectContext, Load, Save
+│   └── pipeline/             ← FileOp collect → resolve → write
+├── generators/
+│   ├── go/                   ← official Go generators
+│   └── common/               ← language-agnostic (CI, Docker, etc.)
+├── templates/                ← embedded via go:embed
+└── go.mod
 ```
-
-For details, see the [Architecture Documentation](../../.claude/ressources/Architecture.md).
 
 ---
 
 ## Common Commands
 
-We use a `Makefile` for convenient command execution. All commands produce clean, colored output:
-
 ```bash
 # Show available commands
 make help
 
-# Build and run the interactive CLI
-make scaffold
+# Build and run dot
+make dev
 
-# Build the binary into bin/scaffold
+# Build the binary into bin/dot
 make build
 
-# Run CLI directly (without building)
+# Run dot directly (without building)
 make run
 
 # Format code
@@ -155,8 +157,8 @@ make install-tools
 **Or use raw Go commands:**
 
 ```bash
-go build -o scaffold ./cmd/scaffold
-go run ./cmd/scaffold
+go build -o bin/dot ./cmd/dot
+go run ./cmd/dot
 go test ./...
 go fmt ./...
 ```
@@ -167,15 +169,11 @@ go fmt ./...
 
 **Go version mismatch**
 
-Make sure your Go version matches the one listed in [Prerequisites](#prerequisites):
-
 ```bash
-go version
+go version  # should be 1.26+
 ```
 
 **Dependency issues**
-
-If you encounter dependency problems, try:
 
 ```bash
 go mod tidy
@@ -185,19 +183,15 @@ go mod verify
 
 **Tests failing**
 
-Run tests with verbose output to see what's failing:
-
 ```bash
 go test -v ./...
 ```
 
 **Build errors**
 
-Ensure all dependencies are installed:
-
 ```bash
 go mod download
 go build ./...
 ```
 
-For other issues, check the [FAQ](../developer-guide/faq.md) or open a [Discussion](../../../discussions).
+For other issues, check the [FAQ](../developer-guide/faq.md) or open a [Discussion](https://github.com/version14/dot/discussions).

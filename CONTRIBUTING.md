@@ -1,6 +1,6 @@
-# Contributing
+# Contributing to dot
 
-Thank you for your interest in contributing! This document explains how to get involved, what we expect, and how to get your changes merged.
+Thank you for your interest in contributing. This document explains how to get involved, what we expect, and how to get your changes merged.
 
 ---
 
@@ -12,7 +12,7 @@ Thank you for your interest in contributing! This document explains how to get i
 - [How to Contribute](#how-to-contribute)
   - [Reporting Bugs](#reporting-bugs)
   - [Suggesting Features](#suggesting-features)
-  - [Activating the commit-msg hook](#activating-the-commit-msg-hook)
+  - [Activating git hooks](#activating-git-hooks)
   - [Submitting Code Changes](#submitting-code-changes)
 - [Commit Conventions](#commit-conventions)
 - [Pull Request Process](#pull-request-process)
@@ -23,7 +23,7 @@ Thank you for your interest in contributing! This document explains how to get i
 
 ## Code of Conduct
 
-This project follows the [Contributor Covenant Code of Conduct](CODE_OF_CONDUCT.md). By participating, you agree to uphold these standards. Please report unacceptable behavior to the maintainers.
+This project follows the [Contributor Covenant Code of Conduct](CODE_OF_CONDUCT.md). By participating, you agree to uphold these standards.
 
 ---
 
@@ -32,12 +32,12 @@ This project follows the [Contributor Covenant Code of Conduct](CODE_OF_CONDUCT.
 1. **Fork** the repository on GitHub
 2. **Clone** your fork locally:
    ```bash
-   git clone https://github.com/your-username/scaffold-cli.git
-   cd scaffold-cli
+   git clone https://github.com/your-username/dot.git
+   cd dot
    ```
 3. **Add the upstream remote:**
    ```bash
-   git remote add upstream https://github.com/version14/scaffold-cli.git
+   git remote add upstream https://github.com/version14/dot.git
    ```
 4. Follow the [development setup guide](docs/getting-started/README.md)
 
@@ -57,11 +57,11 @@ Before opening an issue:
 - Search [existing issues](../../issues) to avoid duplicates
 - Make sure you are on the latest version (`git pull upstream main`)
 
-When opening a bug report, use the **Bug Report** template and include:
+When opening a bug report, include:
 - Steps to reproduce
 - Expected vs actual behavior
-- Your environment (OS, runtime version, relevant tool versions)
-- Relevant logs or screenshots
+- Your environment (OS, Go version)
+- Relevant logs or error output
 
 ### Suggesting Features
 
@@ -70,28 +70,23 @@ Open a **Feature Request** issue with:
 - Your proposed solution
 - Alternatives you considered
 
-Features that align with the project's scope and architecture are more likely to be accepted.
+Features that align with the project architecture and roadmap are more likely to be accepted.
 
 ### Activating git hooks
 
-Git hooks validate commit messages locally and prevent commits that don't follow our conventions. Activate them once after cloning:
+Git hooks validate commit messages locally before they are created. Activate them once after cloning:
 
-**Using Make (recommended):**
 ```bash
 make hooks
 ```
 
-**Or manually:**
+Or manually:
 ```bash
 git config core.hooksPath .githooks
 chmod +x .githooks/commit-msg
 ```
 
-Commit messages are validated:
-- **Locally** — before commit (via `.githooks/commit-msg` hook)
-- **In CI** — on every PR (via GitHub Actions with commitlint)
-
-**View commit rules anytime:**
+View commit rules anytime:
 ```bash
 make commit-lint
 ```
@@ -107,19 +102,15 @@ make commit-lint
 
 2. **Make your changes** following the [code style](#code-style) guidelines
 
-3. **Write or update tests** as needed
+3. **Write or update tests** — every new behavior needs a test
 
 4. **Run validation locally**:
    ```bash
    make validate
    ```
-   This runs: format → vet → lint → tests (with nice colored output)
+   This runs: format → vet → lint → tests
 
-5. **Commit following [commit conventions](#commit-conventions)**:
-   ```bash
-   git commit -m "feat(scope): your message"
-   ```
-   Your commit message will be validated automatically by the local hook.
+5. **Commit following [commit conventions](#commit-conventions)**
 
 6. **Push and open a Pull Request**:
    ```bash
@@ -128,9 +119,8 @@ make commit-lint
 
 **Before submitting the PR, verify:**
 - [ ] All validations pass (`make validate`)
-- [ ] Commits follow Conventional Commits (`make commit-lint` to review rules)
+- [ ] Commits follow Conventional Commits
 - [ ] Tests pass (`make test`)
-- [ ] Code is formatted (`make fmt`)
 - [ ] Documentation is updated if needed
 
 ---
@@ -164,56 +154,29 @@ We follow **Conventional Commits** format. Messages are validated both locally (
 | `ci`       | CI/CD changes                         |
 | `revert`   | Revert a previous commit              |
 
-**Scope** (optional): the module or area affected, e.g. `auth`, `api`, `generators`, `docker`.
+**Scope** (optional): the area affected, e.g. `spec`, `pipeline`, `generators`, `registry`.
 
 ### Examples
 
-✅ **Good examples:**
 ```
 feat: add user authentication
-feat(api): add rate limiting middleware
-fix(generators): handle empty project spec
+feat(pipeline): add conflict marker support
+fix(registry): error on duplicate module claim
 docs(readme): update installation steps
-refactor(survey): extract validation logic
-test: add test for spec validation
+refactor(spec): extract validation logic
+test(pipeline): add AnchorImportBlock edge cases
 chore: update dependencies
-ci: add commitlint to GitHub Actions
-```
-
-❌ **Bad examples (will be rejected):**
-```
-Add user auth              # Missing type
-FEAT: add auth             # Type not lowercase
-feat: Add auth.            # Description starts with uppercase, ends with period
-feat(api): this is a very long commit message that exceeds the 100 character limit  # Too long
+ci: add Go 1.26 matrix
 ```
 
 ### Rules
 
-- **Type is required** and must be lowercase
-- **Scope is optional** (lowercase) and indicates what part changed
-- **Description is required**, starts with lowercase, no period at end
-- **Max 100 characters** for the full header (subject line)
-- Use the **imperative mood** ("add" not "adds" or "added")
-- Reference issues in the footer: `Closes #42`, `Fixes #17`
-
-### Local Validation
-
-Your commits are validated automatically before creation. If the message is invalid, the commit is rejected with a helpful error message.
-
-**To see validation rules:**
-```bash
-make commit-lint
-```
-
-**If a commit is rejected, fix and try again:**
-```bash
-git commit --amend -m "feat(scope): corrected message"
-```
-
-### CI Validation
-
-Commits are also validated in GitHub Actions using commitlint with the `.commitlintrc.json` configuration. This ensures consistency across all contributions.
+- Type is required (lowercase)
+- Scope is optional (lowercase)
+- Description starts with lowercase, no period at end
+- Max 100 characters for the subject line
+- Use imperative mood ("add" not "adds")
+- Reference issues in the footer: `Closes #42`
 
 ---
 
@@ -223,8 +186,7 @@ Commits are also validated in GitHub Actions using commitlint with the `.commitl
 2. **Fill the PR template** — describe what changed and why
 3. **Keep diffs small** — large PRs are hard to review; split if needed
 4. **All CI checks must pass** before merging
-5. **Address review comments** — don't push force-merges; iterate on feedback
-6. **Squash or rebase** before merge if history is messy
+5. **Address review comments** — iterate on feedback
 
 PRs are merged by maintainers once they have one approving review and all checks are green.
 
@@ -238,7 +200,12 @@ See [Code Style Guide](docs/developer-guide/guidelines/code-style.md) for detail
 
 ## Testing
 
-Every PR should maintain or improve the existing test coverage.
+Every PR should maintain or improve existing test coverage.
+
+Critical areas that require table-driven tests:
+- `internal/pipeline/patch.go` — import block patching
+- `internal/generator/registry.go` — `ForSpec` matching
+- `internal/spec/` — spec serialization round-trips
 
 ---
 

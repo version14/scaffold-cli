@@ -1,6 +1,6 @@
-# CI/CD Workflows
+# CI/CD Workflows — dot
 
-This document explains the automated CI/CD pipelines for Scaffold CLI.
+This document explains the automated CI/CD pipelines for dot.
 
 ---
 
@@ -14,7 +14,7 @@ We use GitHub Actions to automate code quality checks, testing, and releases.
 |----------|---------|---------|
 | **CI** | Push to main, PR | Format check, linting, tests, build |
 | **Commitlint** | Push to main, PR | Validate commit messages |
-| **Release** | Tag push (v*.*.*) | Build binaries, create release |
+| **Release** | Tag push (`v*.*.*`) | Build binaries, create release |
 
 ---
 
@@ -26,37 +26,30 @@ Runs on every push to `main` and every PR.
 
 ### Jobs
 
-#### 1. **Vet** — Go static analysis
+#### 1. Vet — Go static analysis
 - Checks for suspicious constructs
-- Fails if issues found
 - **Command:** `go vet ./...`
 
-#### 2. **Lint** — Code quality
+#### 2. Lint — Code quality
 - Runs golangci-lint
 - Checks code formatting with `go fmt`
-- Fails if code is not formatted
-- **Commands:**
-  - `golangci-lint run ./...`
-  - `go fmt ./...` (check only)
+- **Commands:** `golangci-lint run ./...`, `go fmt ./...`
 
-#### 3. **Test** — Unit tests
+#### 3. Test — Unit tests
 - Runs all tests with race detector
-- Generates coverage report
-- Uploads to Codecov (optional)
+- Generates coverage report, uploads to Codecov
 - **Command:** `go test -race -v -coverprofile=coverage.out ./...`
 
-#### 4. **Build** — Binary compilation
-- Builds the scaffold binary
-- Depends on: vet, lint, test (all must pass)
-- **Command:** `go build -v -o scaffold ./cmd/scaffold`
+#### 4. Build — Binary compilation
+- Builds the `dot` binary
+- Depends on vet, lint, test (all must pass)
+- **Command:** `go build -v -o dot ./cmd/dot`
 
 ### Key Features
 
-✅ **Concurrent execution** — vet, lint, and test run in parallel  
-✅ **Fast feedback** — failures reported immediately  
-✅ **Race detection** — catches concurrency bugs  
-✅ **Code coverage** — uploaded for tracking  
-✅ **Required checks** — PR can't be merged if any job fails
+- Concurrent execution — vet, lint, and test run in parallel
+- Race detection — catches concurrency bugs early
+- Required checks — PR can't be merged if any job fails
 
 ---
 
@@ -64,26 +57,13 @@ Runs on every push to `main` and every PR.
 
 **File:** `.github/workflows/commitlint.yml`
 
-Runs on every push and PR to validate commit messages.
-
-### Job
-
-**Commitlint** — Validate Conventional Commits format
-
-- Uses `.commitlintrc.json` configuration
-- Validates commit message format
-- Provides helpful error messages on failure
-- Automatically comments on PR if commits are invalid
-
-### Commit Format
+Validates every commit message against Conventional Commits format.
 
 ```
 <type>(<scope>): <description>
 ```
 
 **Allowed types:** feat, fix, docs, style, refactor, perf, test, chore, ci, revert
-
-**Example:** `feat(generators): add redis caching`
 
 See [CONTRIBUTING.md](../CONTRIBUTING.md#commit-conventions) for details.
 
@@ -95,36 +75,24 @@ See [CONTRIBUTING.md](../CONTRIBUTING.md#commit-conventions) for details.
 
 Runs when a tag matching `v*.*.*` is pushed.
 
-### Jobs
+### Builds
 
-#### 1. **Build** — Multi-platform binaries
-- Builds for:
-  - Linux x86_64
-  - Linux ARM64
-  - macOS x86_64
-  - macOS ARM64
-  - Windows x86_64
-
-#### 2. **Release** — Create GitHub Release
-- Creates release with auto-generated notes
-- Attaches compiled binaries
-- Publishes to GitHub Releases
+| Platform | Artifact |
+|----------|----------|
+| Linux x86_64 | `dot-linux-amd64` |
+| Linux ARM64 | `dot-linux-arm64` |
+| macOS x86_64 | `dot-darwin-amd64` |
+| macOS ARM64 | `dot-darwin-arm64` |
+| Windows x86_64 | `dot-windows-amd64.exe` |
 
 ### How to Release
 
 ```bash
-# Tag the commit
-git tag v1.0.0
-
-# Push the tag
-git push origin v1.0.0
+git tag v0.1.0
+git push origin v0.1.0
 ```
 
-The workflow will:
-1. Build binaries for all platforms
-2. Create a GitHub Release
-3. Attach binaries to release
-4. Generate release notes from commits
+The workflow will build binaries for all platforms, create a GitHub Release, and attach them.
 
 ---
 
@@ -133,76 +101,43 @@ The workflow will:
 ### Local Checks (Before Push)
 
 ```bash
-# Run locally before pushing
 make validate
 ```
 
-This runs:
-- Format check: `go fmt ./...`
-- Vet check: `go vet ./...`
-- Linting: `golangci-lint run ./...`
-- Tests: `go test -race ./...`
-
-### CI Checks (On GitHub)
-
-Same checks run automatically:
-- All jobs must pass
-- PR can't be merged if failed
-- Status checks prevent accidents
+Runs: format → vet → lint → tests.
 
 ### Commit Message Check
 
-**Local:** `.githooks/commit-msg` hook validates on every commit
+**Local:** `.githooks/commit-msg` validates on every commit (`make hooks` to activate)
 
 **CI:** `commitlint` validates on every PR and push
-
-Both use Conventional Commits format for consistency.
 
 ---
 
 ## Troubleshooting
 
-### CI Passed Locally but Failed on GitHub
+**CI passed locally but failed on GitHub**
 
-**Cause:** Different Go versions or environment
-
-**Fix:**
-- Check Go version: `go version`
-- Ensure it matches `.github/workflows/ci.yml` (currently Go 1.26)
-- Run `go mod download` to sync dependencies
-
-### Commitlint Failed on PR
-
-**Cause:** Commits don't follow Conventional Commits format
-
-**Fix:**
+Check Go version:
 ```bash
-# View rules
-make commit-lint
-
-# Fix commit
-git commit --amend -m "feat(scope): correct message"
-
-# Push again
-git push origin feature-branch
+go version  # should match ci.yml (currently Go 1.26)
+go mod download
 ```
 
-### Build Job Fails but Tests Pass
+**Commitlint failed on PR**
 
-**Cause:** Usually missing imports or race conditions
+```bash
+make commit-lint          # view rules
+git commit --amend -m "feat(scope): correct message"
+git push origin your-branch
+```
 
-**Fix:**
-- Check build output for errors
-- Run locally: `go build ./cmd/scaffold`
-- Fix issues and re-push
+**Build job fails**
 
-### Timeout or Stuck Job
-
-**Action:** GitHub will cancel jobs after 6 hours
-
-**Prevention:**
-- Jobs usually complete in <5 minutes
-- If stuck, cancel and re-push to retry
+```bash
+go build ./cmd/dot        # run locally, check errors
+go vet ./...
+```
 
 ---
 
@@ -218,44 +153,6 @@ git push origin feature-branch
 
 ---
 
-## Monitoring
-
-### GitHub Status Checks
-
-View on any PR or push:
-- All jobs must have ✅ check mark
-- Red ✗ means failure
-- Gray ⏳ means in progress
-
-### Codecov (Optional)
-
-If enabled, code coverage appears on PRs:
-- Shows coverage % change
-- Flags significant drops
-- Helps track test quality
-
----
-
-## Cost
-
-All workflows are free with GitHub Actions:
-- 2000 minutes/month included
-- Our workflows: ~2-5 minutes per run
-- Should never exceed limits
-
----
-
-## Future Improvements
-
-Potential additions:
-- [ ] SAST (Security scanning)
-- [ ] Dependency scanning
-- [ ] Docker image builds
-- [ ] Automated versioning
-- [ ] Changelog generation
-
----
-
 ## Questions?
 
-See [CONTRIBUTING.md](../CONTRIBUTING.md) or open a [Discussion](https://github.com/version14/scaffold-cli/discussions).
+See [CONTRIBUTING.md](../CONTRIBUTING.md) or open a [Discussion](https://github.com/version14/dot/discussions).

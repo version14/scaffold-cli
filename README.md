@@ -1,9 +1,14 @@
-# Scaffold CLI
+# dot
 
-[![CI](https://github.com/version14/scaffold-cli/actions/workflows/ci.yml/badge.svg)](https://github.com/version14/scaffold-cli/actions/workflows/ci.yml)
+[![CI](https://github.com/version14/dot/actions/workflows/ci.yml/badge.svg)](https://github.com/version14/dot/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-Scaffold CLI is a modular code generator that builds complete, production-ready project structures from interactive questionnaires. Instead of merging templates, it composes independent generators that create files from specifications, eliminating conflicts and scaling effortlessly from single apps to enterprise monorepos.
+dot is a **universal project companion**. Describe what you want — dot builds it.
+
+- You answer a few questions. dot generates a production-ready project.
+- After creation, dot knows your project's architecture and gives you commands to manage it.
+- Works for REST APIs, CLIs, frontend apps, monorepos, and more.
+- Extensible: anyone can publish generators for new languages, frameworks, and patterns.
 
 ---
 
@@ -21,21 +26,24 @@ Scaffold CLI is a modular code generator that builds complete, production-ready 
 
 ## Overview
 
-**The Problem:** Building project scaffolding tools typically involves merging incompatible templates, managing conflicting dependencies, and maintaining exponential combinations of configurations.
+**The Problem:** Starting a project today means one of three broken paths:
 
-**The Solution:** Scaffold CLI uses a **generator-based architecture** where each feature (API layer, database, CI/CD, etc.) is an independent generator. Generators compose together, eliminating conflicts and making the system trivially extensible.
+1. **Opinionated starters** — fast, but you spend hours removing what you don't need.
+2. **GitHub template repos** — someone did the work, but you spend 30+ minutes filtering out their decisions.
+3. **From scratch** — full control, but 200 lines of boilerplate before you write a single line of business logic.
 
-**Key Features:**
-- **Interactive CLI**: Answer questions to build a project specification (JSON)
-- **Modular Generators**: Independent, composable generators for different layers (base, API, database, auth, CI/CD, testing)
-- **Smart Merging**: Conflict-safe file generation with merge strategies for multi-generator files
-- **Extensible**: Add new generators in ~1 hour with a clear interface
-- **Production-Ready**: Generates complete, deployable monorepos and single-app projects
+**dot's answer:** describe exactly what you want (stack, modules, config) and get a working project. Not just for new projects — also for adding features to existing ones.
 
-**Design Philosophy:**
-- Generate from specs, don't merge templates
-- One generator = one concern
-- Minimal complexity, maximum flexibility
+**How it works:**
+
+```
+dot init
+ └── TUI survey → Spec
+                   └── Generator engine
+                          └── FileOp pipeline → project on disk + .dot/config.json
+```
+
+After `dot init`, the project has a `.dot/config.json` that knows which generators were used and what commands they registered. `dot new route UserController` works from anywhere in the project.
 
 ---
 
@@ -43,22 +51,34 @@ Scaffold CLI is a modular code generator that builds complete, production-ready 
 
 ### Prerequisites
 
-| Tool | Version | Install                               |
-|------|---------|---------------------------------------|
-| go   | 1.26+  | [Install](https://go.dev/doc/install) |
+| Tool | Version | Install |
+|------|---------|---------|
+| go   | 1.26+   | [go.dev/doc/install](https://go.dev/doc/install) |
+| git  | Latest  | [git-scm.com](https://git-scm.com/) |
 
-### Installation
+### Install
 
 ```bash
-git clone https://github.com/version14/scaffold-cli.git
-cd scaffold-cli
+# Via go install (recommended)
+go install github.com/version14/dot/cmd/dot@latest
 
-# Activate the commit-msg hook (optional but recommended)
-git config core.hooksPath .githooks
-
-# Install dependencies
-go mod download
+# From source
+git clone https://github.com/version14/dot.git
+cd dot
+make build
+./bin/dot init
 ```
+
+### Usage
+
+```bash
+dot init                  # Launch TUI → generate project
+dot new route <name>      # Generate a new route in the current project
+dot help                  # List available commands for the current project
+dot version               # Print version
+```
+
+All commands except `dot init` look for `.dot/config.json` by traversing up from `$PWD` to the git root.
 
 See [docs/getting-started](docs/getting-started/README.md) for the full setup guide.
 
@@ -69,112 +89,89 @@ See [docs/getting-started](docs/getting-started/README.md) for the full setup gu
 We use a **Makefile** for convenient command execution with clean, colored output:
 
 ```bash
-# See all available commands
-make help
+make help        # See all available commands
 
-# Build and run the CLI
-make scaffold
+make dev         # Build and run dot
+make build       # Build to bin/dot
+make run         # Run directly (no build step)
 
-# Run validation suite (fmt → vet → lint → test)
-make validate
-
-# Individual commands
-make build       # Build to bin/scaffold
-make test        # Run tests
+make validate    # Full check suite: fmt → vet → lint → test
+make test        # Run tests with race detector
 make fmt         # Format code
 make lint        # Lint code
 make clean       # Remove build artifacts
 ```
 
-**Or use raw Go commands:**
+**Or raw Go commands:**
 
 ```bash
-go build -o scaffold ./cmd/scaffold          # Build
-go run ./cmd/scaffold                         # Run
-go test ./...                                 # Test
-go fmt ./...                                  # Format
-golangci-lint run ./...                       # Lint
+go build -o bin/dot ./cmd/dot
+go run ./cmd/dot
+go test ./...
+go fmt ./...
+golangci-lint run ./...
 ```
 
 ---
 
 ## Architecture
 
-Scaffold CLI follows a **modular generator pattern** where specifications drive code generation. See [Architecture.md](.claude/ressources/Architecture.md) for detailed design decisions.
+dot uses a **generator-based architecture** — specifications drive file generation.
 
 ```
-scaffold-cli/
-├── cmd/
-│   └── scaffold/
-│       └── main.go              # CLI entrypoint
+dot/
+├── cmd/dot/                  ← CLI entry point (thin: parse → call internal → print)
 ├── internal/
-│   ├── survey/                  # Interactive questionnaire
-│   │   └── questions.go
-│   ├── spec/                    # Project specification (JSON)
-│   │   └── spec.go
-│   ├── generators/              # Composable generators
-│   │   ├── base.go              # Base project structure
-│   │   ├── api.go               # API layer (REST/gRPC)
-│   │   ├── database.go          # Database setup
-│   │   ├── ci_cd.go             # GitHub Actions, Docker
-│   │   ├── auth.go              # Authentication scaffolding
-│   │   └── testing.go           # Test setup
-│   ├── template/                # Template rendering
-│   │   └── render.go
-│   └── merge/                   # Smart file merging
-│       └── merge.go             # Conflict-safe appending
-├── templates/                   # Reusable template files
-│   ├── rest_handler.go.tpl
-│   ├── grpc_handler.proto.tpl
-│   ├── github_actions.yml.tpl
-│   └── ...
-├── docs/                        # Documentation
-├── .github/                     # GitHub Actions workflows
-└── go.mod
+│   ├── spec/                 ← Spec, ProjectSpec, CoreConfig, ModuleSpec
+│   ├── generator/            ← Generator interface, Registry, FileOp, CommandDef
+│   ├── project/              ← ProjectContext, Load, Save (.dot/config.json)
+│   └── pipeline/             ← FileOp collect → resolve → write
+├── generators/
+│   ├── go/                   ← official Go generators
+│   └── common/               ← language-agnostic (CI, Docker, etc.)
+└── templates/                ← embedded via go:embed
 ```
 
-### Workflow
+**Workflow:**
 
-1. **Survey** → User answers questions via CLI
-2. **Spec** → Answers converted to a project specification (JSON)
-3. **Generators** → Independent generators read the spec and produce files
-4. **Merge** → Multiple generators can safely modify the same file
-5. **Write** → All files written to disk, project complete
+1. **Survey** → TUI collects user choices
+2. **Spec** → choices become a typed `Spec` struct
+3. **Registry** → finds generators matching the spec's language + modules
+4. **Apply** → generators return `[]FileOp` (create, template, append, patch)
+5. **Pipeline** → ops collected in memory, conflicts resolved, then written atomically
+6. **Context** → `.dot/config.json` written with spec + available commands
+
+See [docs/developer-guide](docs/developer-guide) for deep-dives.
 
 ---
 
 ## CI/CD
 
-We use GitHub Actions for automated quality checks and releases.
+| Workflow | Trigger | Purpose |
+|----------|---------|---------|
+| **CI** | Push / PR | Vet, lint, test, build |
+| **Commitlint** | Push / PR | Validate commit messages |
+| **Release** | `v*.*.*` tag | Build multi-platform binaries, create GitHub Release |
 
-### Workflows
+See [docs/CI_CD.md](docs/CI_CD.md) for details.
 
-- **CI** — Format check, linting, tests, build (on every push & PR)
-- **Commitlint** — Validate commit messages (on every push & PR)
-- **Release** — Build binaries, create release (on version tags)
-
-See [docs/CI_CD.md](docs/CI_CD.md) for detailed information.
-
-### Local Checks
-
-Before pushing, run:
+**Local checks before pushing:**
 
 ```bash
-make validate      # Runs all checks locally
-make commit-lint   # Shows commit message rules
-make hooks         # Activates git hooks for commit validation
+make validate    # fmt → vet → lint → test
+make hooks       # Activate git hooks for local commit validation
 ```
 
 ---
 
 ## Contributing
 
-Contributions are welcome. Please read [CONTRIBUTING.md](CONTRIBUTING.md) before opening a pull request.
+Contributions are welcome. Read [CONTRIBUTING.md](CONTRIBUTING.md) before opening a PR.
 
 Key steps:
 1. Activate git hooks: `make hooks`
-2. Make changes following our style guide
-3. Run validation: `make validate`
+2. Make changes and write tests
+3. Run: `make validate`
 4. Commit with Conventional Commits format
 5. Open a PR
 
