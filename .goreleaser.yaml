@@ -54,7 +54,7 @@ changelog:
       - Merge pull request
       - Merge branch
 
-brews:
+homebrew:
   - name: dot
     repository:
       owner: version14
