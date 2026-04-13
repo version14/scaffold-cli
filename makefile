@@ -1,4 +1,4 @@
-.PHONY: help fmt lint build scaffold test clean vet run install-tools validate commit-lint hooks
+.PHONY: help fmt lint build dev test clean vet run install-tools validate commit-lint hooks
 
 # Colors
 RED := \033[0;31m
@@ -10,7 +10,7 @@ BOLD := \033[1m
 RESET := \033[0m
 
 # Variables
-BINARY_NAME=scaffold
+BINARY_NAME=dot
 BIN_DIR=bin
 GO=go
 GOFLAGS=-v
@@ -36,13 +36,13 @@ endef
 
 help: ## Display this help screen
 	@echo ""
-	@echo "$(BOLD)$(CYAN)Scaffold CLI - Make Targets$(RESET)"
+	@echo "$(BOLD)$(CYAN)dot - Make Targets$(RESET)"
 	@echo "$(CYAN)════════════════════════════════════════════$(RESET)"
 	@echo ""
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "  $(CYAN)%-18s$(RESET) %s\n", $$1, $$2}'
 	@echo ""
 	@echo "$(YELLOW)Examples:$(RESET)"
-	@echo "  make scaffold    # Build and run the CLI"
+	@echo "  make dev         # Build and run dot"
 	@echo "  make validate    # Run all checks (fmt → vet → lint → test)"
 	@echo "  make clean       # Remove build artifacts"
 	@echo ""
@@ -75,26 +75,26 @@ test: ## Run all tests with race detector
 	$(call print_success,"All tests passed")
 	@echo ""
 
-build: fmt vet ## Build the scaffold binary into bin/ directory
+build: fmt vet ## Build the dot binary into bin/
 	$(call print_header,"BUILD","                            ")
 	$(call print_info,"Building $(BINARY_NAME)...")
 	@mkdir -p $(BIN_DIR)
-	@$(GO) build $(GOFLAGS) -o $(BIN_DIR)/$(BINARY_NAME) ./cmd/scaffold 2>&1 | grep -v "^$(BIN_DIR)" || true
+	@$(GO) build $(GOFLAGS) -o $(BIN_DIR)/$(BINARY_NAME) ./cmd/dot 2>&1 | grep -v "^$(BIN_DIR)" || true
 	$(call print_success,"Binary built: $(BIN_DIR)/$(BINARY_NAME)")
 	@echo ""
 
-scaffold: build ## Build and run the scaffold CLI
-	$(call print_header,"SCAFFOLD","                        ")
-	$(call print_info,"Starting Scaffold CLI...")
+dev: build ## Build and run dot
+	$(call print_header,"DOT","                             ")
+	$(call print_info,"Starting dot...")
 	@echo ""
 	@$(BIN_DIR)/$(BINARY_NAME)
 	@echo ""
 
-run: ## Run scaffold directly (without building)
+run: ## Run dot directly (without building)
 	$(call print_header,"RUN","                              ")
-	$(call print_info,"Running Scaffold CLI...")
+	$(call print_info,"Running dot...")
 	@echo ""
-	@$(GO) run ./cmd/scaffold
+	@$(GO) run ./cmd/dot
 	@echo ""
 
 clean: ## Remove build artifacts
@@ -153,8 +153,8 @@ commit-lint: ## Validate commit messages (shows format rules)
 	@echo ""
 	@echo "$(YELLOW)Examples:$(RESET)"
 	@echo "  feat: add user authentication"
-	@echo "  fix(api): handle null responses"
-	@echo "  docs(readme): update setup instructions"
+	@echo "  fix(pipeline): handle empty file ops"
+	@echo "  docs(readme): update installation steps"
 	@echo "  refactor(generators): extract common logic"
 	@echo ""
 
