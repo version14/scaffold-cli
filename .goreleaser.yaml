@@ -1,0 +1,81 @@
+version: 2
+
+project_name: dot
+
+before:
+  hooks:
+    - go mod tidy
+    - go generate ./...
+
+builds:
+  - id: dot
+    main: ./cmd/dot
+    binary: dot
+    ldflags:
+      - -s -w -X main.buildVersion={{.Version}}
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm64
+    ignore:
+      - goos: windows
+        goarch: arm64
+
+archives:
+  - id: dot
+    formats:
+      - tar.gz
+    format_overrides:
+      - goos: windows
+        formats:
+          - zip
+    name_template: "dot_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    files:
+      - README.md
+      - LICENSE*
+
+checksum:
+  name_template: "checksums.txt"
+  algorithm: sha256
+
+changelog:
+  sort: asc
+  use: github
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+      - "^chore:"
+      - Merge pull request
+      - Merge branch
+
+brews:
+  - name: dot
+    repository:
+      owner: version14
+      name: homebrew-tap
+      token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
+    commit_author:
+      name: goreleaserbot
+      email: bot@goreleaser.com
+    commit_msg_template: "chore(brew): update dot to {{ .Tag }}"
+    homepage: "https://github.com/version14/dot"
+    description: "Universal project companion — scaffold and extend any project from the terminal."
+    license: "MIT"
+    install: |
+      bin.install "dot"
+    test: |
+      system "#{bin}/dot", "version"
+
+release:
+  github:
+    owner: version14
+    name: dot
+  draft: false
+  prerelease: auto
+  name_template: "v{{ .Version }}"

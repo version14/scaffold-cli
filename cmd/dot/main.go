@@ -28,6 +28,8 @@ func run(args []string) error {
 		return cmdNew(args[1], args[2], args[3:])
 	case "help", "commands":
 		return cmdHelp()
+	case "self-update", "update":
+		return cmdSelfUpdate()
 	case "version", "--version", "-v":
 		fmt.Printf("dot %s\n", buildVersion)
 		return nil
@@ -44,6 +46,7 @@ Usage:
   dot new <type> <name>     generate a new artifact in the current project
   dot help                  list available commands for the current project
   dot version               print version
+  dot self-update           update dot to the latest release
 
 `)
 }

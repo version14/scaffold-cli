@@ -15,7 +15,8 @@ dot is a **universal project companion**. Describe what you want — dot builds 
 ## Table of Contents
 
 - [Overview](#overview)
-- [Getting Started](#getting-started)
+- [Install](#install)
+- [Usage](#usage)
 - [Development](#development)
 - [Architecture](#architecture)
 - [CI/CD](#cicd)
@@ -47,40 +48,74 @@ After `dot init`, the project has a `.dot/config.json` that knows which generato
 
 ---
 
-## Getting Started
+## Install
 
-### Prerequisites
-
-| Tool | Version | Install |
-|------|---------|---------|
-| go   | 1.26+   | [go.dev/doc/install](https://go.dev/doc/install) |
-| git  | Latest  | [git-scm.com](https://git-scm.com/) |
-
-### Install
+### Homebrew (macOS / Linux)
 
 ```bash
-# Via go install (recommended)
-go install github.com/version14/dot/cmd/dot@latest
-
-# From source
-git clone https://github.com/version14/dot.git
-cd dot
-make build
-./bin/dot init
+brew install version14/tap/dot
 ```
 
-### Usage
+### curl (macOS / Linux — no Go required)
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/version14/dot/main/install.sh | sh
+```
+
+Installs to `/usr/local/bin/dot` by default. Override with `INSTALL_DIR=~/bin sh install.sh`.
+
+### go install
+
+```bash
+go install github.com/version14/dot/cmd/dot@latest
+```
+
+Requires Go 1.21+. Binary lands in `$GOPATH/bin` (usually already on `$PATH`).
+
+### From source
+
+```bash
+git clone https://github.com/version14/dot.git
+cd dot
+make build        # → bin/dot
+./bin/dot version
+```
+
+### Keep it up to date
+
+```bash
+dot self-update
+```
+
+Fetches the latest release from GitHub and replaces the binary in place. Works regardless of how you installed it.
+
+### Uninstall
+
+```bash
+# Homebrew
+brew uninstall dot
+
+# curl / go install / from source
+curl -fsSL https://raw.githubusercontent.com/version14/dot/main/uninstall.sh | sh
+```
+
+Project `.dot/` directories are left untouched — remove them manually if needed.
+
+---
+
+## Usage
 
 ```bash
 dot init                  # Launch TUI → generate project
-dot new route <name>      # Generate a new route in the current project
+dot new route <name>      # Generate a new artifact in the current project
 dot help                  # List available commands for the current project
 dot version               # Print version
+dot self-update           # Update to the latest release
 ```
 
 All commands except `dot init` look for `.dot/config.json` by traversing up from `$PWD` to the git root.
 
-See [docs/getting-started](docs/getting-started/README.md) for the full setup guide.
+See [docs/getting-started](docs/getting-started/README.md) for the full walkthrough.
 
 ---
 

@@ -1,19 +1,71 @@
 # Getting Started — dot
 
-This guide walks you through setting up dot for local development.
+---
+
+## Installing dot (end users)
+
+### Homebrew — macOS / Linux
+
+```bash
+brew install version14/tap/dot
+```
+
+### curl — macOS / Linux (no Go required)
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/version14/dot/main/install.sh | sh
+```
+
+Installs to `/usr/local/bin`. Override the destination:
+
+```bash
+INSTALL_DIR=~/.local/bin curl -fsSL https://raw.githubusercontent.com/version14/dot/main/install.sh | sh
+```
+
+### go install
+
+```bash
+go install github.com/version14/dot/cmd/dot@latest
+```
+
+### Keeping dot up to date
+
+```bash
+dot self-update
+```
+
+Fetches the latest release from GitHub and replaces the binary in place. Works regardless of how dot was originally installed.
+
+### Uninstalling
+
+```bash
+# Homebrew
+brew uninstall dot
+
+# curl / go install / from source
+curl -fsSL https://raw.githubusercontent.com/version14/dot/main/uninstall.sh | sh
+```
+
+If you installed to a custom directory, set `INSTALL_DIR` first:
+
+```bash
+INSTALL_DIR=~/.local/bin curl -fsSL https://raw.githubusercontent.com/version14/dot/main/uninstall.sh | sh
+```
+
+Project `.dot/` directories are left untouched — remove them manually if needed.
 
 ---
 
-## Prerequisites
+## Setting up for development
+
+### Prerequisites
 
 | Tool | Version | Install |
 |------|---------|---------|
-| go   | 1.26+   | [go.dev/doc/install](https://go.dev/doc/install) |
+| go   | 1.21+   | [go.dev/doc/install](https://go.dev/doc/install) |
 | git  | Latest  | [git-scm.com](https://git-scm.com/) |
 
----
-
-## Setup
+### Setup
 
 1. **Clone the repository**
 
@@ -99,21 +151,22 @@ For details, see [CONTRIBUTING.md](../../CONTRIBUTING.md).
 
 ```
 dot/
-├── cmd/dot/                  ← CLI entry point
-│   ├── main.go               ← thin: os.Exit(root.Execute())
-│   ├── root.go               ← root cobra command
-│   ├── init.go               ← dot init (TUI → Spec → generators)
-│   ├── new.go                ← dot new <type> <name>
-│   ├── version.go            ← dot version
-│   └── help.go               ← dot help (reads .dot/config.json)
+├── cmd/dot/                  ← CLI entry point (os.Args dispatch, no framework)
+│   ├── main.go               ← thin: run(os.Args[1:]) → os.Exit
+│   ├── build.go              ← buildVersion, buildRegistry()
+│   ├── styles.go             ← lipgloss styles + ASCII banner
+│   ├── cmd_init.go           ← dot init  (huh TUI → Spec → generators)
+│   ├── cmd_new.go            ← dot new <type> <name>
+│   ├── cmd_help.go           ← dot help  (reads .dot/config.json)
+│   └── cmd_selfupdate.go     ← dot self-update
 ├── internal/
 │   ├── spec/                 ← Spec, ProjectSpec, CoreConfig, ModuleSpec
-│   ├── generator/            ← Generator interface, Registry, FileOp
-│   ├── project/              ← ProjectContext, Load, Save
-│   └── pipeline/             ← FileOp collect → resolve → write
+│   ├── generator/            ← Generator interface, Registry, FileOp, CommandDef
+│   ├── project/              ← ProjectContext, Load, Save (.dot/config.json)
+│   └── pipeline/             ← FileOp collect → resolve → write atomically
 ├── generators/
 │   ├── go/                   ← official Go generators
-│   └── common/               ← language-agnostic (CI, Docker, etc.)
+│   └── common/               ← language-agnostic (CI, Docker — planned v0.2)
 ├── templates/                ← embedded via go:embed
 └── go.mod
 ```
