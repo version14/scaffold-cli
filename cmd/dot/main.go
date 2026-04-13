@@ -2,101 +2,48 @@ package main
 
 import (
 	"fmt"
-	"log"
-	"strings"
-
-	"github.com/charmbracelet/huh"
-	"github.com/charmbracelet/lipgloss"
+	"os"
 )
-
-var (
-	username string
-	email    string
-)
-
-var (
-	headerStyle = lipgloss.NewStyle().
-			Bold(true).
-			Foreground(lipgloss.Color("12")).
-			MarginTop(1).
-			MarginBottom(1)
-
-	subHeaderStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.Color("8")).
-			MarginBottom(2)
-
-	successStyle = lipgloss.NewStyle().
-			Bold(true).
-			Foreground(lipgloss.Color("10")).
-			PaddingLeft(2).
-			PaddingRight(2)
-
-	infoStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.Color("8")).
-			Italic(true)
-)
-
-func printHeader() {
-	header := `
-██╗   ██╗ ██╗██╗  ██╗      ███████╗ ██████╗ █████╗ ███████╗███████╗ ██████╗ ██╗     ██████╗
-██║   ██║███║██║  ██║      ██╔════╝██╔════╝██╔══██╗██╔════╝██╔════╝██╔═══██╗██║     ██╔══██╗
-██║   ██║╚██║███████║█████╗███████╗██║     ███████║█████╗  █████╗  ██║   ██║██║     ██║  ██║
-╚██╗ ██╔╝ ██║╚════██║╚════╝╚════██║██║     ██╔══██║██╔══╝  ██╔══╝  ██║   ██║██║     ██║  ██║
- ╚████╔╝  ██║     ██║      ███████║╚██████╗██║  ██║██║     ██║     ╚██████╔╝███████╗██████╔╝
-  ╚═══╝   ╚═╝     ╚═╝      ╚══════╝ ╚═════╝╚═╝  ╚═╝╚═╝     ╚═╝      ╚═════╝ ╚══════╝╚═════╝
-`
-	fmt.Println(header)
-	fmt.Println(headerStyle.Render("✨ Project Scaffolder"))
-	fmt.Println(subHeaderStyle.Render("Generate production-ready projects in seconds"))
-	fmt.Println()
-}
 
 func main() {
-	printHeader()
-
-	form := huh.NewForm(
-		huh.NewGroup(
-			huh.NewInput().
-				Title("👤 Username").
-				Placeholder("john_doe").
-				Description("Your GitHub username or preferred name").
-				Value(&username).
-				Validate(func(s string) error {
-					if len(s) < 3 {
-						return fmt.Errorf("username must be at least 3 characters")
-					}
-					return nil
-				}),
-		).Description("Let's get started! Tell us about yourself."),
-
-		huh.NewGroup(
-			huh.NewInput().
-				Title("📧 Email").
-				Placeholder("you@example.com").
-				Description("Your email address for the project").
-				Value(&email).
-				Validate(func(s string) error {
-					if len(s) < 5 || !strings.Contains(s, "@") {
-						return fmt.Errorf("please enter a valid email address")
-					}
-					return nil
-				}),
-		).Description("Where should we send updates?"),
-	).
-		WithTheme(huh.ThemeDracula())
-
-	err := form.Run()
-	if err != nil {
-		log.Fatal(err)
+	if err := run(os.Args[1:]); err != nil {
+		fmt.Fprintf(os.Stderr, "dot: %v\n", err)
+		os.Exit(1)
 	}
-
-	fmt.Println()
-	fmt.Println(successStyle.Render("✓ Profile Created Successfully!"))
-	fmt.Println()
-	fmt.Printf("  Username: %s\n", lipgloss.NewStyle().Foreground(lipgloss.Color("11")).Render(username))
-	fmt.Printf("  Email:    %s\n", lipgloss.NewStyle().Foreground(lipgloss.Color("11")).Render(email))
-	fmt.Println()
-	fmt.Println(infoStyle.Render("🚀 Ready to scaffold your project! (coming soon)"))
-	fmt.Println()
 }
 
+func run(args []string) error {
+	if len(args) == 0 {
+		printUsage()
+		return nil
+	}
+
+	switch args[0] {
+	case "init":
+		return cmdInit()
+	case "new":
+		if len(args) < 3 {
+			return fmt.Errorf("usage: dot new <type> <name>")
+		}
+		return cmdNew(args[1], args[2], args[3:])
+	case "help", "commands":
+		return cmdHelp()
+	case "version", "--version", "-v":
+		fmt.Printf("dot %s\n", buildVersion)
+		return nil
+	default:
+		return fmt.Errorf("unknown command %q — run 'dot help' for usage", args[0])
+	}
+}
+
+func printUsage() {
+	fmt.Print(`dot — universal project companion
+
+Usage:
+  dot init                  scaffold a new project (launches TUI)
+  dot new <type> <name>     generate a new artifact in the current project
+  dot help                  list available commands for the current project
+  dot version               print version
+
+`)
+}
