@@ -95,7 +95,7 @@ jobs:
         run: go mod download
 
       - name: Build binary
-        run: go build -v -o scaffold ./cmd/scaffold
+        run: go build -v -o dot ./cmd/dot
 
       - name: Verify binary
-        run: ./scaffold --help 2>/dev/null || echo "Binary created successfully"
+        run: ./dot --help 2>/dev/null || echo "Binary created successfully"

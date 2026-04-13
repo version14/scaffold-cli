@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"log"
+	"strings"
 
 	"github.com/charmbracelet/huh"
 	"github.com/charmbracelet/lipgloss"
@@ -75,7 +76,7 @@ func main() {
 				Description("Your email address for the project").
 				Value(&email).
 				Validate(func(s string) error {
-					if len(s) < 5 || !contains(s, "@") {
+					if len(s) < 5 || !strings.Contains(s, "@") {
 						return fmt.Errorf("please enter a valid email address")
 					}
 					return nil
@@ -99,11 +100,3 @@ func main() {
 	fmt.Println()
 }
 
-func contains(s, substr string) bool {
-	for i := 0; i < len(s)-len(substr)+1; i++ {
-		if s[i:i+len(substr)] == substr {
-			return true
-		}
-	}
-	return false
-}

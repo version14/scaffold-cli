@@ -18,23 +18,23 @@ jobs:
           - os: ubuntu-latest
             GOOS: linux
             GOARCH: amd64
-            filename: scaffold-linux-amd64
+            filename: dot-linux-amd64
           - os: ubuntu-latest
             GOOS: linux
             GOARCH: arm64
-            filename: scaffold-linux-arm64
+            filename: dot-linux-arm64
           - os: macos-latest
             GOOS: darwin
             GOARCH: amd64
-            filename: scaffold-darwin-amd64
+            filename: dot-darwin-amd64
           - os: macos-latest
             GOOS: darwin
             GOARCH: arm64
-            filename: scaffold-darwin-arm64
+            filename: dot-darwin-arm64
           - os: windows-latest
             GOOS: windows
             GOARCH: amd64
-            filename: scaffold-windows-amd64.exe
+            filename: dot-windows-amd64.exe
     steps:
       - uses: actions/checkout@v6
 
@@ -44,7 +44,7 @@ jobs:
           go-version: '1.26'
 
       - name: Build binary
-        run: go build -v -o ${{ matrix.filename }} ./cmd/scaffold
+        run: go build -v -o ${{ matrix.filename }} ./cmd/dot
         env:
           GOOS: ${{ matrix.GOOS }}
           GOARCH: ${{ matrix.GOARCH }}

@@ -1,4 +1,4 @@
-module scaffold-cli
+module github.com/version14/dot
 
 go 1.26.1
 
