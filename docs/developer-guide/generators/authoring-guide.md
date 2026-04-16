@@ -143,6 +143,99 @@ func buildRegistry() *generator.Registry {
 
 ---
 
+## Step 3b: Composing with other generators
+
+If your generator builds on top of another (e.g. a REST API generator that delegates folder structure to an architecture generator), call the dependency's `Apply()` inside your own and merge the results.
+
+### Static composition (compile-time dependency)
+
+Use this when the composed generator is in the same package or a stable internal package:
+
+```go
+func (g *GoRestAPIGenerator) Apply(s spec.Spec) ([]generator.FileOp, error) {
+    var ops []generator.FileOp
+
+    // Delegate folder structure to the architecture generator
+    switch s.Config.Architecture {
+    case "clean":
+        arch := &GoCleanArchGenerator{}
+        archOps, err := arch.Apply(s)
+        if err != nil {
+            return nil, fmt.Errorf("clean-arch: %w", err)
+        }
+        ops = append(ops, archOps...)
+    case "hexagonal":
+        arch := &GoHexagonalGenerator{}
+        archOps, err := arch.Apply(s)
+        if err != nil {
+            return nil, fmt.Errorf("hexagonal: %w", err)
+        }
+        ops = append(ops, archOps...)
+    // default (mvc): no composed generator needed, REST API generator owns the structure
+    }
+
+    // Then emit REST API-specific ops (main.go, go.mod, routes/)
+    ops = append(ops, generator.FileOp{
+        Kind: generator.Create, Path: "main.go", Generator: g.Name(), Priority: 0,
+        Content: "...",
+    })
+    return ops, nil
+}
+```
+
+The architecture generator is a standalone, registered generator with its own `Name()`, `Language()`, and `Modules()`. It can also be invoked directly via the registry. The REST API generator composes it as an implementation detail.
+
+### Dynamic composition (registry injection)
+
+Use this when the composed generators are not known until the Spec is read. Inject the registry at construction:
+
+```go
+type MicroservicesGatewayGenerator struct {
+    Registry *generator.Registry
+}
+
+func (g *MicroservicesGatewayGenerator) Apply(s spec.Spec) ([]generator.FileOp, error) {
+    var ops []generator.FileOp
+
+    // Compose each declared service generator
+    for _, service := range s.Services {
+        gen, ok := g.Registry.Get(service.GeneratorName)
+        if !ok {
+            return nil, fmt.Errorf("service generator %q not registered", service.GeneratorName)
+        }
+        serviceOps, err := gen.Apply(service.Spec)
+        if err != nil {
+            return nil, fmt.Errorf("service %s: %w", service.Name, err)
+        }
+        ops = append(ops, serviceOps...)
+    }
+
+    // Add gateway routing config ops
+    ops = append(ops, g.gatewayOps(s)...)
+    return ops, nil
+}
+```
+
+In `build.go`, register the gateway **after** all service generators so the registry is fully populated by the time `Apply()` runs:
+
+```go
+reg := &generator.Registry{}
+// Service generators first
+must(reg.Register(&gogen.GoRestAPIGenerator{}))
+must(reg.Register(&tsgen.NodeNestJSGenerator{}))
+// Gateway last — it holds a reference to reg, used lazily at Apply() time
+must(reg.Register(&commgen.MicroservicesGatewayGenerator{Registry: reg}))
+```
+
+### Composition rules
+
+- **Propagate errors.** Wrap errors from composed generators with `fmt.Errorf("component: %w", err)`.
+- **Mind the priority.** If the composing generator needs to override a file the composed generator creates, use a higher `Priority` on the overriding op.
+- **Determinism is inherited.** A composed generator that is non-deterministic makes the composing generator non-deterministic too.
+- **The pipeline is unaware.** It receives a flat `[]FileOp`. Composition is invisible to the pipeline.
+
+---
+
 ## Step 4: Write tests
 
 Create `generators/go/redis_test.go`. Test `Apply()` and `RunAction()` exhaustively:
@@ -189,6 +282,33 @@ func TestGoRedisGeneratorApply(t *testing.T) {
 
 Use table-driven tests. No shared mutable state. Always `t.Parallel()`.
 
+**Testing composed generators:** test each generator in isolation first, then test the composing generator separately. Do not test the composed generator's output again inside the composing generator's test — that's the composed generator's responsibility.
+
+```go
+func TestGoRestAPIGeneratorApply_CleanArch(t *testing.T) {
+    t.Parallel()
+    g := &gogen.GoRestAPIGenerator{}
+    s := spec.Spec{
+        Project: spec.ProjectSpec{Name: "my-api", Language: "go"},
+        Modules: []spec.ModuleSpec{{Name: "rest-api"}},
+        Config:  spec.CoreConfig{Architecture: "clean"},
+    }
+    ops, err := g.Apply(s)
+    if err != nil {
+        t.Fatalf("Apply: %v", err)
+    }
+    // Assert that clean-arch structure is present
+    paths := opPaths(ops)
+    if !contains(paths, "domain/") {
+        t.Error("expected domain/ directory op from clean-arch composition")
+    }
+    // Assert that REST API-specific files are also present
+    if !contains(paths, "main.go") {
+        t.Error("expected main.go from rest-api generator")
+    }
+}
+```
+
 ---
 
 ## Common mistakes
@@ -204,6 +324,12 @@ Don't use `time.Now()`, `rand`, or map iteration order in your generator code. S
 
 **4. Using Priority=0 on a Create op that another generator also targets.**
 If you expect another generator might create the same file, use a higher priority, or switch to `Append`/`Patch`. Check `official-generators.md` to see what paths other generators own.
+
+**5. Swallowing errors from composed generators.**
+If a composed generator returns an error, propagate it. Never ignore it. A composed generator that fails silently can produce a partial scaffold with no indication of what went wrong.
+
+**6. Testing the composed generator's output in the composing generator's tests.**
+If `GoRestAPIGenerator` composes `GoCleanArchGenerator`, don't assert on `domain/` folder structure in `rest_api_test.go`. That is `clean_arch_test.go`'s job. Test only that the composition happened (i.e. `domain/` exists in the output) and that the REST API-specific ops are present.
 
 **5. Forgetting to handle the empty-args case in RunAction.**
 `dot new cache-key` with no name argument should return a clear error, not panic.
