@@ -14,6 +14,7 @@ How dot is structured and why.
 - [Repository structure](architecture/repository-structure.md) — package layout and the progressive split plan
 - [Input layers](architecture/input-layers.md) — CLI TUI, dot.yaml (PaC), future layers
 - [Registry design](architecture/registry-design.md) — how registries are question trees, how community registries plug in
+- [Registry architecture diagrams](architecture/registry-architecture-diagram.md) — visual diagrams of plugins, question trees, and two-phase survey
 
 ### Internals
 How the core engine works, piece by piece.
