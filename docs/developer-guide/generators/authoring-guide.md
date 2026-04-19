@@ -6,6 +6,10 @@ This guide walks you through writing a new generator for dot.
 
 ## Before you start
 
+For a complete picture of what generators are, what they can and cannot do, and how they
+fit into the dot lifecycle, read [generator-spec.md](generator-spec.md) first. This guide
+assumes you've read it.
+
 A generator is the right tool when:
 - You want to scaffold files for a new language, framework, or module
 - The output is deterministic — same Spec always produces the same files
@@ -61,7 +65,7 @@ func (g *GoRedisGenerator) Apply(s spec.Spec) ([]generator.FileOp, error) {
             Kind:      generator.Create,
             Path:      "internal/cache/redis.go",
             Generator: g.Name(),
-            Priority:  0,
+            Priority:  5,
             Content:   fmt.Sprintf(`package cache
 
 import "github.com/redis/go-redis/v9"
@@ -188,6 +192,8 @@ The architecture generator is a standalone, registered generator with its own `N
 ### Dynamic composition (registry injection)
 
 Use this when the composed generators are not known until the Spec is read. Inject the registry at construction:
+
+> **Note:** `s.Services` does not exist on `spec.Spec` today. The example below is illustrative for the planned multi-app Spec (see [open-decisions.md](../roadmap/open-decisions.md) #7). In the current Spec, per-service data would come from `spec.Extensions`.
 
 ```go
 type MicroservicesGatewayGenerator struct {

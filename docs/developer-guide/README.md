@@ -13,6 +13,8 @@ How dot is structured and why.
 - [Overview](architecture/overview.md) — the big picture: input layers, engine, pipeline
 - [Repository structure](architecture/repository-structure.md) — package layout and the progressive split plan
 - [Input layers](architecture/input-layers.md) — CLI TUI, dot.yaml (PaC), future layers
+- [Registry design](architecture/registry-design.md) — how registries are question trees, how community registries plug in
+- [Registry architecture diagrams](architecture/registry-architecture-diagram.md) — visual diagrams of plugins, question trees, and two-phase survey
 
 ### Internals
 How the core engine works, piece by piece.
@@ -25,8 +27,9 @@ How the core engine works, piece by piece.
 - [Conflict resolution](internals/conflict-resolution.md) — how dot handles user-modified files
 
 ### Generators
-How to build a generator.
+How generators work and how to build one.
 
+- [Generator spec](generators/generator-spec.md) — what a generator is, what it can and cannot do, how it works
 - [Authoring guide](generators/authoring-guide.md) — step-by-step: implement the interface, register, test
 - [FileOp reference](generators/fileop-reference.md) — all FileOp kinds and their constraints
 - [Patch strategies](generators/patch-strategies.md) — AnchorImportBlock, AnchorMainFunc, AnchorInitFunc

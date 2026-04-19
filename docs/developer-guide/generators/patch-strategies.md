@@ -5,6 +5,11 @@ Implementation: `internal/pipeline/patch.go`
 Patch ops insert content at a named anchor inside an existing file.
 This document defines the supported anchors, their constraints, and the known-unsupported edge cases.
 
+These three anchors (`AnchorImportBlock`, `AnchorMainFunc`, `AnchorInitFunc`) are designed for the most common code injection patterns:
+adding imports, startup logic, and initialization hooks. They are intentionally limited to patterns that generators created —
+for example, if a generator creates a Go file from scratch, it can safely assume there is exactly one `func main()` with clear boundaries.
+New anchors should only be added for patterns that cannot be expressed via `Append` ops (appending to the end of a file).
+
 ---
 
 ## AnchorImportBlock

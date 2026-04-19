@@ -56,13 +56,16 @@ type Spec struct {
 ```
 TUI survey → surveySpec() → Spec
                              │
-                             ├── Registry.ForSpec(spec) → []Generator
+                             ├── generators activated by registry question tree
+                             │   (current v0.1: Registry.ForSpec(spec) → []Generator)
                              │
                              └── generator.Apply(spec) → []FileOp
                                                           │
                                                           └── stored in .dot/config.json
                                                               as ProjectContext.Spec
 ```
+
+> The current dispatch uses `Registry.ForSpec(spec)` — a flat match on language and modules. The planned redesign (see [architecture/registry-design.md](../architecture/registry-design.md)) activates generators via question-tree traversal instead, so the set of active generators is determined during the survey rather than after it. The `spec.Spec` contract is identical in both models.
 
 The Spec is immutable once produced. Generators may read it but must not modify it.
 

@@ -2,6 +2,8 @@
 
 Implementation: `internal/generator/registry.go`
 
+> **Current vs planned:** This document describes the current (v0.1) flat registry — a simple store of generators resolved via `ForSpec`. The planned redesign makes the registry a **question tree with plugin attachment points**, so the survey flow is entirely data-driven rather than hardcoded. That design is in [architecture/registry-design.md](../architecture/registry-design.md). The `ForSpec` and `Get` APIs described here remain valid for v0.1.
+
 ---
 
 ## What the Registry does
