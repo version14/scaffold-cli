@@ -8,6 +8,8 @@ Unresolved questions that block specific features. Each decision must be made wi
 
 **Blocks:** v0.2 local custom generators
 
+> **Related design:** [architecture/registry-design.md](../architecture/registry-design.md) defines how community generators attach to the survey flow as plugins (Type 1 — new project type, or Type 2 — subflow at a specific question). This decision is about the **compilation/loading mechanism** — how the binary gets into dot's process. The plugin attachment API is settled separately.
+
 Go has no simple cross-platform plugin system. Three options:
 
 | Option | How it works | Pros | Cons |

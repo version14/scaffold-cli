@@ -75,6 +75,8 @@ Use static composition when the dependency is known at compile time — same pac
 
 **Dynamic composition via registry injection** — the composing generator receives the registry at construction time and looks up generators by name at `Apply()` time:
 
+> **Note:** `s.Services` does not exist on `spec.Spec` today. The example below is illustrative for the planned multi-app Spec (see [open-decisions.md](../roadmap/open-decisions.md) #7). In the current Spec, per-service data would come from `spec.Extensions`.
+
 ```go
 type MicroservicesGatewayGenerator struct {
     Registry *generator.Registry // injected at construction
