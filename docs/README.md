@@ -59,6 +59,8 @@ One file per built-in generator. Each covers: answers consumed, files written, v
 | [contributor/generators/backend_architecture_mvc_architecture.md](contributor/generators/backend_architecture_mvc_architecture.md) | `backend_architecture_mvc` — MVC backend structure |
 | [contributor/generators/backend_architecture_clean_architecture.md](contributor/generators/backend_architecture_clean_architecture.md) | `backend_architecture_clean_architecture` — Clean Architecture backend structure |
 | [contributor/generators/backend_architecture_hexagonal_architecture.md](contributor/generators/backend_architecture_hexagonal_architecture.md) | `backend_architecture_hexagonal` — Hexagonal Architecture backend structure |
+| [contributor/generators/python_fastapi_base.md](contributor/generators/python_fastapi_base.md) | `python_fastapi_base` — base FastAPI app with `/health` endpoint |
+| [contributor/generators/python_fastapi_auth.md](contributor/generators/python_fastapi_auth.md) | `python_fastapi_auth` — FastAPI auth routes `/register` and `/login` |
 
 ### Plugin reference (`docs/contributor/plugins/`)
 

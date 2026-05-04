@@ -1,0 +1,22 @@
+{
+  "name": "python_fastapi_no_auth",
+  "flow_id": "init",
+  "answers": {
+    "project_name": "my-api",
+    "monorepo_type": "single",
+    "stack": "python",
+    "python-framework": "fastapi",
+    "python-enable-auth": false,
+    "confirm-generate": true
+  },
+  "expected_visited": [
+    "project_name",
+    "monorepo_type",
+    "stack",
+    "python-framework",
+    "python-enable-auth",
+    "confirm-generate"
+  ],
+  "skip_post_commands": true,
+  "skip_test_commands": true
+}

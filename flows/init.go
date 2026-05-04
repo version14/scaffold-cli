@@ -91,6 +91,23 @@ func InitFlow() *FlowDef {
 		},
 	}
 
+	// Python / FastAPI branch
+	pythonEnableAuth := &flow.ConfirmQuestion{
+		QuestionBase: flow.QuestionBase{ID_: "python-enable-auth"},
+		Label:        "Add authentication routes (/register, /login)?",
+		Default:      false,
+		Then:         &flow.Next{Question: confirmGenerate},
+		Else:         &flow.Next{Question: confirmGenerate},
+	}
+
+	pythonFramework := &flow.OptionQuestion{
+		QuestionBase: flow.QuestionBase{ID_: "python-framework"},
+		Label:        "Python framework",
+		Options: []*flow.Option{
+			{Label: "FastAPI", Value: "fastapi", Next: &flow.Next{Question: pythonEnableAuth}},
+		},
+	}
+
 	framework := &flow.OptionQuestion{
 		QuestionBase: flow.QuestionBase{ID_: "ts-backend-framework"},
 		Label:        "Library / Framework",
@@ -106,6 +123,7 @@ func InitFlow() *FlowDef {
 		Description:  "DOT will scaffold the matching toolchain.",
 		Options: []*flow.Option{
 			{Label: "TypeScript", Value: "typescript", Next: &flow.Next{Question: framework}},
+			{Label: "Python", Value: "python", Next: &flow.Next{Question: pythonFramework}},
 			// {Label: "Go", Value: "go", Next: &flow.Next{Question: confirmGenerate}},
 		},
 	}
@@ -162,6 +180,18 @@ func resolveMonorepoGenerators(s *spec.ProjectSpec) []Invocation {
 
 	if stack == "typescript" {
 		out = append(out, Invocation{Name: "typescript_base"})
+	}
+
+	if stack == "python" {
+		pythonFramework, _ := s.Answers["python-framework"].(string)
+		pythonAuthEnabled, _ := s.Answers["python-enable-auth"].(bool)
+		if pythonFramework == "fastapi" {
+			out = append(out, Invocation{Name: "python_fastapi_base"})
+			if pythonAuthEnabled {
+				out = append(out, Invocation{Name: "python_fastapi_auth"})
+			}
+		}
+		return out
 	}
 
 	if framework == "express" {
