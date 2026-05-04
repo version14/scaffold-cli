@@ -26,6 +26,8 @@ import (
 	expresssharederrors "github.com/version14/dot/generators/express_shared_errors"
 	expresstestsetup "github.com/version14/dot/generators/express_test_setup"
 	pluginreposkeleton "github.com/version14/dot/generators/plugin_repo_skeleton"
+	pythonfastapiauth "github.com/version14/dot/generators/python_fastapi_auth"
+	pythonfastapibase "github.com/version14/dot/generators/python_fastapi_base"
 	postgresdockercompose "github.com/version14/dot/generators/postgres_docker_compose"
 	postgresenvexample "github.com/version14/dot/generators/postgres_env_example"
 	prettierconfig "github.com/version14/dot/generators/prettier_config"
@@ -76,6 +78,10 @@ func builtinGeneratorEntries() []generator.Entry {
 		{Manifest: drizzleconfigbase.Manifest, Generator: drizzleconfigbase.New()},
 		{Manifest: drizzletypescriptdeps.Manifest, Generator: drizzletypescriptdeps.New()},
 		{Manifest: drizzlepostgresadapter.Manifest, Generator: drizzlepostgresadapter.New()},
+
+		// Python / FastAPI
+		{Manifest: pythonfastapibase.Manifest, Generator: pythonfastapibase.New()},
+		{Manifest: pythonfastapiauth.Manifest, Generator: pythonfastapiauth.New()},
 
 		// Auth
 		{Manifest: authbetterauth.Manifest, Generator: authbetterauth.New()},

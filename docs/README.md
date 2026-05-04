@@ -30,6 +30,7 @@ The docs are split into two audiences. If you are **using** DOT to scaffold proj
 | [contributor/authoring-flows.md](contributor/authoring-flows.md) | Writing flow graphs: questions, branching, loops |
 | [contributor/authoring-generators.md](contributor/authoring-generators.md) | Writing generators: VirtualProjectState, Manifest, validators, semver |
 | [contributor/authoring-plugins.md](contributor/authoring-plugins.md) | Writing plugins: injections, fragments, publishing |
+| [contributor/authoring-skills.md](contributor/authoring-skills.md) | Writing AI skills: structure, sync, CLAUDE.md routing |
 | [contributor/test-flow.md](contributor/test-flow.md) | End-to-end fixture testing with test-flow |
 
 ### Flow reference (`docs/contributor/flows/`)
@@ -58,6 +59,8 @@ One file per built-in generator. Each covers: answers consumed, files written, v
 | [contributor/generators/backend_architecture_mvc_architecture.md](contributor/generators/backend_architecture_mvc_architecture.md) | `backend_architecture_mvc` — MVC backend structure |
 | [contributor/generators/backend_architecture_clean_architecture.md](contributor/generators/backend_architecture_clean_architecture.md) | `backend_architecture_clean_architecture` — Clean Architecture backend structure |
 | [contributor/generators/backend_architecture_hexagonal_architecture.md](contributor/generators/backend_architecture_hexagonal_architecture.md) | `backend_architecture_hexagonal` — Hexagonal Architecture backend structure |
+| [contributor/generators/python_fastapi_base.md](contributor/generators/python_fastapi_base.md) | `python_fastapi_base` — base FastAPI app with `/health` endpoint |
+| [contributor/generators/python_fastapi_auth.md](contributor/generators/python_fastapi_auth.md) | `python_fastapi_auth` — FastAPI auth routes `/register` and `/login` |
 
 ### Plugin reference (`docs/contributor/plugins/`)
 
@@ -94,6 +97,7 @@ These rules keep the docs accurate as the codebase evolves.
 | New flow in `flows/` | Create `docs/contributor/flows/<id>.md` (from template) + update table above |
 | New CLI command | Add to `docs/user/cli-reference.md` |
 | New major subsystem | Add a section to `docs/contributor/architecture.md` |
+| New skill in `.claude/skills/` | Create `docs/contributor/authoring-skills.md` entry + run `sync-skills` |
 
 ### Which code changes require a doc update
 
@@ -106,6 +110,7 @@ These rules keep the docs accurate as the codebase evolves.
 | New injection kind | `docs/contributor/authoring-plugins.md` |
 | New exported type in `pkg/dotapi` or `pkg/dotplugin` | `authoring-generators.md` or `authoring-plugins.md` |
 | Generator manifest fields change | `docs/contributor/generators/<name>.md` |
+| Skill created or modified in `.claude/skills/` | Run `sync-skills` + update `docs/contributor/authoring-skills.md` Built-in skills table |
 | Plugin injection IDs change | `docs/contributor/plugins/<name>.md` + affected fixtures |
 | Pipeline step added/removed | `docs/contributor/architecture.md` |
 | `.dot/` schema changes | `docs/contributor/architecture.md` (spec/manifest sections) |

@@ -467,3 +467,5 @@ Each loop iteration is a separate `generator.Invocation` — the same generator 
 | `biome_config` | `generators/biome_config` | biome.json formatter/linter config |
 | `service_writer` | `generators/service_writer` | Go microservice (HTTP server, Dockerfile, healthcheck) |
 | `plugin_repo_skeleton` | `generators/plugin_repo_skeleton` | Full DOT plugin repository scaffold |
+| `python_fastapi_base` | `generators/python_fastapi_base` | Base FastAPI app with `/health` endpoint |
+| `python_fastapi_auth` | `generators/python_fastapi_auth` | FastAPI auth routes `/register` and `/login` |

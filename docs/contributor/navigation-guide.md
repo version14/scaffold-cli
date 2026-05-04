@@ -66,6 +66,17 @@ This guide answers the question **"where do I look?"** for any change you might 
 
 ---
 
+### Skills (AI assistant prompts)
+
+| Task | Primary file(s) | Read first |
+|------|----------------|------------|
+| Add a new AI skill | Create `.claude/skills/<name>/SKILL.md` + `examples.md` | [authoring-skills.md](authoring-skills.md) |
+| Modify an existing skill | Edit `.claude/skills/<name>/SKILL.md` or `examples.md` | [authoring-skills.md — modifying](authoring-skills.md#modifying-an-existing-skill) |
+| Sync skills to Cursor | Run `sync-skills` skill | [authoring-skills.md — sync](authoring-skills.md#the-claude--cursor-sync) |
+| Wire a skill into routing | Add a line to `CLAUDE.md` Key routing rules | [authoring-skills.md — routing](authoring-skills.md#wiring-a-skill-into-claudemd) |
+
+---
+
 ### Tests & fixtures
 
 | Task | Primary file(s) | Read first |
