@@ -186,6 +186,7 @@ func (r *HuhFormRunner) buildField(q flow.Question, store *liveStore) (huh.Field
 		*ptr = typed.Default
 		return huh.NewConfirm().
 			Title(typed.Label).
+			Description(typed.Description).
 			Value(ptr), nil
 
 	case *flow.LoopQuestion:
