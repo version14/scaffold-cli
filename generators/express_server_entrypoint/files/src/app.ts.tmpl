@@ -7,6 +7,25 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+/**
+ * @openapi
+ * /health:
+ *   get:
+ *     tags: [System]
+ *     summary: Liveness probe
+ *     description: Returns "ok" when the process is up. Use as a load-balancer health check.
+ *     responses:
+ *       200:
+ *         description: Service is up
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               required: [status, timestamp]
+ *               properties:
+ *                 status: { type: string, example: ok }
+ *                 timestamp: { type: string, format: date-time }
+ */
 app.get('/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
