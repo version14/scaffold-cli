@@ -1,3 +1,9 @@
+{{ if .HasDecorators -}}
+// Auth routes are registered via DecoratorRouter in src/app.ts.
+// Kept as an empty module so the Outputs validator stays satisfied; safe to
+// delete if you remove the decorator wiring.
+export {};
+{{ else -}}
 import { Router } from 'express';
 import { login, logout, me, refresh, register } from '../controllers/auth.controller';
 import { authMiddleware } from '../shared/middlewares/auth.middleware';
@@ -11,3 +17,4 @@ router.post('/refresh', refresh);
 router.post('/logout', logout);
 
 export default router;
+{{ end -}}

@@ -49,14 +49,27 @@ func (g *Generator) Generate(ctx *dotapi.Context) error {
 	updated := existing + fmt.Sprintf("\n# Auth (BetterAuth)\nBETTER_AUTH_SECRET=%s\nBETTER_AUTH_URL=http://localhost:${PORT:-3000}\n", generateSecretPlaceholder())
 	ctx.State.WriteFile(".env.example", []byte(updated), state.ContentRaw)
 
-	// Inject cookie-parser middleware into app.ts
+	// Inject cookie-parser middleware AND mount BetterAuth's catch-all
+	// (toNodeHandler) directly into app.ts. We deliberately skip the
+	// intermediate "src/routes/auth.route.ts" indirection — BetterAuth owns
+	// its routing and a one-liner in app.ts is the clearest place to wire it.
 	if f, ok := ctx.State.GetFile("src/app.ts"); ok {
 		content := string(f.Content)
 		if !strings.Contains(content, "cookieParser") {
 			content = "import cookieParser from 'cookie-parser';\n" + content
 			content = strings.Replace(content, "app.use(express.json());", "app.use(express.json());\napp.use(cookieParser());", 1)
-			ctx.State.WriteFile("src/app.ts", []byte(content), state.ContentRaw)
 		}
+		if !strings.Contains(content, "toNodeHandler") {
+			imports := "import { toNodeHandler } from 'better-auth/node';\nimport { auth } from './lib/auth';\n"
+			content = imports + content
+			mount := "app.all('/api/auth/*', toNodeHandler(auth));\n\n"
+			if strings.Contains(content, "export default app;") {
+				content = strings.Replace(content, "export default app;", mount+"export default app;", 1)
+			} else {
+				content += "\n" + mount
+			}
+		}
+		ctx.State.WriteFile("src/app.ts", []byte(content), state.ContentRaw)
 	}
 
 	return nil

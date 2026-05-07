@@ -1,3 +1,196 @@
+{{ if .HasDecorators -}}
+{{ if .HasDB -}}
+import type { Request, Response } from 'express';
+import bcrypt from 'bcryptjs';
+import { eq } from 'drizzle-orm';
+import { z } from '../shared/openapi/registry';
+import {
+  ApiResponse,
+  Auth,
+  Body,
+  Controller,
+  Get,
+  Post,
+} from '../shared/decorators';
+import type { AuthRequest } from '../shared/middlewares/auth.middleware';
+import { db } from '../db';
+import { refreshTokens, users } from '../db/schema';
+import { signRefreshToken, signToken, verifyToken } from '../shared/services/jwt';
+
+const credentials = z.object({
+  email: z.string().email(),
+  password: z.string().min(8),
+});
+const message = z.object({ message: z.string() });
+const userPayload = z.object({ user: z.unknown() });
+
+const COOKIE_OPTIONS = {
+  httpOnly: true,
+  secure: process.env.NODE_ENV === 'production',
+  sameSite: 'lax' as const,
+};
+
+async function issueTokens(userId: string, email: string) {
+  const accessToken = signToken({ id: userId, email });
+  const newRefreshToken = signRefreshToken({ id: userId, email });
+  const decoded = verifyToken<{ exp: number }>(newRefreshToken);
+  const expiresAt = new Date(decoded.exp * 1000);
+  await db.insert(refreshTokens).values({ token: newRefreshToken, userId, expiresAt });
+  return { accessToken, refreshToken: newRefreshToken };
+}
+
+function setAuthCookies(res: Response, tokens: { accessToken: string; refreshToken: string }) {
+  res.cookie('access_token', tokens.accessToken, COOKIE_OPTIONS);
+  res.cookie('refresh_token', tokens.refreshToken, COOKIE_OPTIONS);
+}
+
+@Controller({ tag: 'auth', prefix: '/auth', description: 'Authentication endpoints' })
+export class AuthController {
+  @Post('/register')
+  @Body(credentials)
+  @ApiResponse(201, 'User registered', message)
+  @ApiResponse(409, 'Email already in use')
+  async register(req: Request, res: Response): Promise<void> {
+    const { email, password } = req.body as { email: string; password: string };
+    const existing = await db.select().from(users).where(eq(users.email, email)).limit(1);
+    if (existing.length > 0) {
+      res.status(409).json({ error: 'Email already in use' });
+      return;
+    }
+    const passwordHash = await bcrypt.hash(password, 10);
+    const result = await db.insert(users).values({ email, passwordHash }).returning();
+    const newUser = result[0];
+    if (!newUser) {
+      res.status(500).json({ error: 'Failed to create user' });
+      return;
+    }
+    const tokens = await issueTokens(newUser.id, newUser.email);
+    setAuthCookies(res, tokens);
+    res.status(201).json({ message: 'Registered successfully' });
+  }
+
+  @Post('/login')
+  @Body(credentials)
+  @ApiResponse(200, 'Logged in', message)
+  @ApiResponse(401, 'Invalid credentials')
+  async login(req: Request, res: Response): Promise<void> {
+    const { email, password } = req.body as { email: string; password: string };
+    const result = await db.select().from(users).where(eq(users.email, email)).limit(1);
+    const user = result[0];
+    if (!user) {
+      res.status(401).json({ error: 'Invalid credentials' });
+      return;
+    }
+    const valid = await bcrypt.compare(password, user.passwordHash);
+    if (!valid) {
+      res.status(401).json({ error: 'Invalid credentials' });
+      return;
+    }
+    const tokens = await issueTokens(user.id, user.email);
+    setAuthCookies(res, tokens);
+    res.json({ message: 'Logged in successfully' });
+  }
+
+  @Post('/refresh')
+  @ApiResponse(200, 'Tokens refreshed', message)
+  @ApiResponse(401, 'Invalid refresh token')
+  async refresh(req: Request, res: Response): Promise<void> {
+    const refreshToken = req.cookies?.refresh_token;
+    if (!refreshToken) {
+      res.status(400).json({ error: 'Refresh token required' });
+      return;
+    }
+    let payload: { id: string; email: string; exp: number } | null = null;
+    try {
+      payload = verifyToken<{ id: string; email: string; exp: number }>(refreshToken);
+    } catch {
+      res.status(401).json({ error: 'Invalid refresh token' });
+      return;
+    }
+    const stored = await db
+      .select()
+      .from(refreshTokens)
+      .where(eq(refreshTokens.token, refreshToken))
+      .limit(1);
+    const storedToken = stored[0];
+    if (!storedToken) {
+      res.status(401).json({ error: 'Refresh token not found' });
+      return;
+    }
+    await db.delete(refreshTokens).where(eq(refreshTokens.id, storedToken.id));
+    const tokens = await issueTokens(payload.id, payload.email);
+    setAuthCookies(res, tokens);
+    res.json({ message: 'Tokens refreshed' });
+  }
+
+  @Post('/logout')
+  @ApiResponse(204, 'Logged out')
+  async logout(req: Request, res: Response): Promise<void> {
+    const refreshToken = req.cookies?.refresh_token;
+    if (refreshToken) {
+      await db.delete(refreshTokens).where(eq(refreshTokens.token, refreshToken));
+    }
+    res.clearCookie('access_token');
+    res.clearCookie('refresh_token');
+    res.status(204).send();
+  }
+
+  @Get('/me')
+  @Auth()
+  @ApiResponse(200, 'Current user', userPayload)
+  @ApiResponse(401, 'Unauthorized')
+  async me(req: Request, res: Response): Promise<void> {
+    res.json({ user: (req as AuthRequest).user });
+  }
+}
+{{ else -}}
+import type { Request, Response } from 'express';
+import { z } from '../shared/openapi/registry';
+import { ApiResponse, Auth, Body, Controller, Get, Post } from '../shared/decorators';
+import type { AuthRequest } from '../shared/middlewares/auth.middleware';
+
+const credentials = z.object({
+  email: z.string().email(),
+  password: z.string().min(8),
+});
+
+@Controller({ tag: 'auth', prefix: '/auth', description: 'Authentication endpoints (stub: enable a database to wire real persistence)' })
+export class AuthController {
+  @Post('/register')
+  @Body(credentials)
+  @ApiResponse(501, 'Not implemented')
+  async register(_req: Request, res: Response): Promise<void> {
+    res.status(501).json({ error: 'not implemented' });
+  }
+
+  @Post('/login')
+  @Body(credentials)
+  @ApiResponse(501, 'Not implemented')
+  async login(_req: Request, res: Response): Promise<void> {
+    res.status(501).json({ error: 'not implemented' });
+  }
+
+  @Post('/refresh')
+  @ApiResponse(501, 'Not implemented')
+  async refresh(_req: Request, res: Response): Promise<void> {
+    res.status(501).json({ error: 'not implemented' });
+  }
+
+  @Post('/logout')
+  @ApiResponse(501, 'Not implemented')
+  async logout(_req: Request, res: Response): Promise<void> {
+    res.status(501).json({ error: 'not implemented' });
+  }
+
+  @Get('/me')
+  @Auth()
+  @ApiResponse(200, 'Current user')
+  async me(req: Request, res: Response): Promise<void> {
+    res.json({ user: (req as AuthRequest).user });
+  }
+}
+{{ end -}}
+{{ else -}}
 {{ if .HasDB -}}
 import type { Request, Response } from 'express';
 import type { AuthRequest } from '../shared/middlewares/auth.middleware';
@@ -30,6 +223,26 @@ function setAuthCookies(res: Response, tokens: { accessToken: string; refreshTok
   res.cookie('refresh_token', tokens.refreshToken, COOKIE_OPTIONS);
 }
 
+/**
+ * @openapi
+ * /auth/register:
+ *   post:
+ *     tags: [Auth]
+ *     summary: Register a new user
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [email, password]
+ *             properties:
+ *               email: { type: string, format: email }
+ *               password: { type: string, minLength: 8 }
+ *     responses:
+ *       201: { description: User registered, sets access_token + refresh_token cookies }
+ *       409: { description: Email already in use }
+ */
 export async function register(req: Request, res: Response): Promise<void> {
   const { email, password } = req.body as { email: string; password: string };
   const existing = await db.select().from(users).where(eq(users.email, email)).limit(1);
@@ -49,6 +262,26 @@ export async function register(req: Request, res: Response): Promise<void> {
   res.status(201).json({ message: 'Registered successfully' });
 }
 
+/**
+ * @openapi
+ * /auth/login:
+ *   post:
+ *     tags: [Auth]
+ *     summary: Authenticate a user
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [email, password]
+ *             properties:
+ *               email: { type: string, format: email }
+ *               password: { type: string }
+ *     responses:
+ *       200: { description: Logged in, sets access_token + refresh_token cookies }
+ *       401: { description: Invalid credentials }
+ */
 export async function login(req: Request, res: Response): Promise<void> {
   const { email, password } = req.body as { email: string; password: string };
   const result = await db.select().from(users).where(eq(users.email, email)).limit(1);
@@ -67,6 +300,16 @@ export async function login(req: Request, res: Response): Promise<void> {
   res.json({ message: 'Logged in successfully' });
 }
 
+/**
+ * @openapi
+ * /auth/refresh:
+ *   post:
+ *     tags: [Auth]
+ *     summary: Rotate the access token using the refresh_token cookie
+ *     responses:
+ *       200: { description: Tokens refreshed }
+ *       401: { description: Invalid or missing refresh token }
+ */
 export async function refresh(req: Request, res: Response): Promise<void> {
   const refreshToken = req.cookies?.refresh_token;
   if (!refreshToken) {
@@ -101,6 +344,15 @@ export async function refresh(req: Request, res: Response): Promise<void> {
   res.json({ message: 'Tokens refreshed' });
 }
 
+/**
+ * @openapi
+ * /auth/logout:
+ *   post:
+ *     tags: [Auth]
+ *     summary: Revoke the current refresh token and clear cookies
+ *     responses:
+ *       204: { description: Logged out }
+ */
 export async function logout(req: Request, res: Response): Promise<void> {
   const refreshToken = req.cookies?.refresh_token;
   if (refreshToken) {
@@ -111,6 +363,18 @@ export async function logout(req: Request, res: Response): Promise<void> {
   res.status(204).send();
 }
 
+/**
+ * @openapi
+ * /auth/me:
+ *   get:
+ *     tags: [Auth]
+ *     summary: Return the authenticated user's identity
+ *     security:
+ *       - BearerAuth: []
+ *     responses:
+ *       200: { description: Current user }
+ *       401: { description: Unauthorized }
+ */
 export async function me(req: AuthRequest, res: Response): Promise<void> {
   res.json({ user: req.user });
 }
@@ -137,4 +401,5 @@ export async function logout(_req: Request, res: Response): Promise<void> {
 export async function me(req: AuthRequest, res: Response): Promise<void> {
   res.json({ user: req.user });
 }
+{{ end -}}
 {{ end -}}
