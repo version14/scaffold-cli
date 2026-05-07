@@ -45,10 +45,11 @@ type TextQuestion struct {
 
 type ConfirmQuestion struct {
 	QuestionBase
-	Label   string
-	Default bool
-	Then    *Next
-	Else    *Next
+	Label       string
+	Description string
+	Default     bool
+	Then        *Next
+	Else        *Next
 }
 
 type LoopQuestion struct {
