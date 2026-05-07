@@ -24,7 +24,12 @@ JWT auth route and controller for MVC architecture. Generates `src/routes/auth.r
 
 ## Answers consumed
 
-None (reads `ctx.PreviousGens` at runtime to detect Drizzle).
+None directly. The generator reads `ctx.PreviousGens` at runtime:
+
+| Probe | Effect on output |
+|-------|------------------|
+| Contains `drizzle_postgres_adapter` (`HasDB`) | Controller emits a real bcrypt + Drizzle implementation; otherwise emits 501 stubs |
+| Contains `express_decorators_core` (`HasDecorators`) | Controller is emitted as a `@Controller({ prefix: '/auth' })` class with `@Post`/`@Get`/`@Auth`/`@Body`/`@ApiResponse` decorators; the route file becomes a no-op `export {}`; `app.ts` is patched to chain `.registerController(new AuthController())` onto the existing `DecoratorRouter` |
 
 ---
 
@@ -32,8 +37,9 @@ None (reads `ctx.PreviousGens` at runtime to detect Drizzle).
 
 | Path | Description |
 |------|-------------|
-| `src/routes/auth.route.ts` | Express router wiring POST /register, POST /login, GET /me, POST /refresh, POST /logout |
-| `src/controllers/auth.controller.ts` | Full controller with bcrypt + DB operations when `drizzle_postgres_adapter` ran; 501 stubs otherwise |
+| `src/routes/auth.route.ts` | When decorators OFF: Express router wiring POST /register, /login, GET /me, POST /refresh, /logout. When decorators ON: empty `export {}` (routes are registered via `DecoratorRouter` in `src/app.ts`) |
+| `src/controllers/auth.controller.ts` | Functional handlers with JSDoc `@openapi` blocks on every endpoint (decorators OFF) — picked up by `express_swagger_jsdoc` so `/docs` is fully populated. With decorators ON: a `@Controller`-decorated `AuthController` class. When `drizzle_postgres_adapter` is present: real implementation; otherwise: 501 stubs |
+| `src/__tests__/auth.db.test.ts` | Supertest DB-tests covering register/login/me/refresh/logout (only emitted when Drizzle is present) |
 
 Also merges into (when Drizzle is present):
 

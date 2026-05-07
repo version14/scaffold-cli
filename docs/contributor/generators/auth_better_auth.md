@@ -1,6 +1,6 @@
 # Generator: `auth_better_auth`
 
-BetterAuth session-based authentication setup. Creates `src/lib/auth.ts` (auth instance with Drizzle adapter) and `src/routes/auth.route.ts` (catch-all handler for `/api/auth/*`). Adds `better-auth` to dependencies and appends `BETTER_AUTH_SECRET` and `BETTER_AUTH_URL` to `.env.example`.
+BetterAuth session-based authentication. Creates `src/lib/auth.ts` (auth instance with Drizzle adapter) and mounts the BetterAuth catch-all (`toNodeHandler(auth)`) at `/api/auth/*` directly inside `src/app.ts`. Also appends `cookie-parser`, `BETTER_AUTH_SECRET`, and `BETTER_AUTH_URL`.
 
 ---
 
@@ -9,7 +9,7 @@ BetterAuth session-based authentication setup. Creates `src/lib/auth.ts` (auth i
 | Field | Value |
 |-------|-------|
 | Name | `auth_better_auth` |
-| Version | `0.1.0` |
+| Version | `0.2.0` |
 | Package | `generators/auth_better_auth` |
 
 ---
@@ -24,7 +24,7 @@ BetterAuth session-based authentication setup. Creates `src/lib/auth.ts` (auth i
 
 ## Answers consumed
 
-None.
+None — selection is driven by `flows/init.go` (`ts-backend-auth-method = better-auth`).
 
 ---
 
@@ -33,14 +33,14 @@ None.
 | Path | Description |
 |------|-------------|
 | `src/lib/auth.ts` | BetterAuth instance with Drizzle PG adapter and email/password enabled |
-| `src/routes/auth.route.ts` | Express router that forwards all `/api/auth/*` requests to BetterAuth |
 | `.env.example` | Appends `BETTER_AUTH_SECRET` and `BETTER_AUTH_URL` |
 
 Also merges into:
 
 | Path | Keys added / updated |
 |------|---------------------|
-| `package.json` | `dependencies.better-auth` |
+| `package.json` | `dependencies.better-auth`, `dependencies.cookie-parser`, `devDependencies.@types/cookie-parser` |
+| `src/app.ts` | Imports `cookieParser`, `toNodeHandler`, `auth`; adds `app.use(cookieParser())` and `app.all('/api/auth/*', toNodeHandler(auth))` directly (no intermediate route file) |
 
 ---
 
@@ -55,9 +55,7 @@ Also merges into:
 
 ## Post-generation commands
 
-| Command | WorkDir | Notes |
-|---------|---------|-------|
-| `pnpm install` | project root | Deduped |
+No PostGenerationCommands. `pnpm install` is run by `typescript_base`.
 
 ## Test commands
 
@@ -65,6 +63,20 @@ No TestCommands.
 
 ---
 
+## Decorator interaction
+
+When `ts-backend-decorators-validation = true`, BetterAuth keeps its catch-all behaviour — `toNodeHandler` owns its routing under `/api/auth/*` and is **not** exposed through the decorator system. The decorator router and BetterAuth coexist on the same Express app; the rest of the API can use `@Controller`, `@Auth`, etc. The cookie-parser middleware injection works on the decorator-aware `app.ts` because it still contains `app.use(express.json());` as an anchor.
+
+---
+
 ## Conflicts
 
-None.
+None — but on the same scaffold you would not normally pair `auth_better_auth` with `auth_jwt_*` generators.
+
+---
+
+## See also
+
+- [generators/auth_better_auth_schema.md](auth_better_auth_schema.md)
+- [generators/auth_jwt_vanilla.md](auth_jwt_vanilla.md)
+- [docs/user/decorators.md](../../user/decorators.md)

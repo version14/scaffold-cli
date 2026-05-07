@@ -66,6 +66,20 @@ No TestCommands.
 
 ---
 
+## Decorator interaction
+
+When `express_decorators_core` ran earlier in the pipeline, this generator additionally patches `src/app.ts` to wire the JWT middleware into `ExpressRouterAdapter`:
+
+```ts
+import { authMiddleware } from './shared/middlewares/auth.middleware';
+// ...
+new ExpressRouterAdapter({ authMiddleware })
+```
+
+That makes every `@Auth()`-decorated route gated by JWT verification automatically. Detection is done via `slices.Contains(ctx.PreviousGens, "express_decorators_core")` — there is no extra answer to set.
+
+---
+
 ## Conflicts
 
 None.
