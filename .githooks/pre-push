@@ -8,10 +8,11 @@
 echo "Running tests before push..."
 make test || exit 1
 
+echo "Running build check..."
+make build || exit 1
+
 echo "Running test-flows before push..."
 make test-flows || exit 1
 
-echo "Running build check..."
-make build || exit 1
 
 exit 0
