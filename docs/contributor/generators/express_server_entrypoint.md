@@ -33,7 +33,7 @@ None. Uses `Spec.Metadata.ProjectName` for documentation only.
 | Path | Description |
 |------|-------------|
 | `src/index.ts` | Bootstraps HTTP server, reads `PORT` from env |
-| `src/app.ts` | Express app: CORS, JSON body parser, `GET /health` |
+| `src/app.ts` | Express app: CORS, JSON body parser, `GET /health` (with JSDoc `@openapi` annotation so `swagger-jsdoc` picks it up automatically when `express_swagger_jsdoc` is part of the scaffold) |
 | `.env.example` | Seed file with `PORT=3000`; downstream generators append to this file |
 
 ---

@@ -25,7 +25,11 @@ Full JWT authentication module for Clean Architecture. Generates a complete `src
 
 ## Answers consumed
 
-None.
+None directly. The generator reads `ctx.PreviousGens` at runtime:
+
+| Probe | Effect on output |
+|-------|------------------|
+| Contains `express_decorators_core` (`HasDecorators`) | Controller is emitted as a `@Controller({ prefix: '/auth' })` class with `@Post`/`@Get`/`@Auth`/`@Body`/`@ApiResponse` decorators (use cases injected at module scope as before); the route file becomes a no-op `export {}`; `app.ts` is patched to chain `.registerController(new AuthController())` onto the existing `DecoratorRouter` |
 
 ---
 
@@ -40,10 +44,10 @@ None.
 | `src/modules/auth/application/use-cases/register.use-case.ts` | `RegisterUseCase` |
 | `src/modules/auth/application/use-cases/refresh.use-case.ts` | `RefreshUseCase` |
 | `src/modules/auth/application/use-cases/logout.use-case.ts` | `LogoutUseCase` |
-| `src/modules/auth/application/controllers/auth.controller.ts` | Express controller delegating to use-cases |
+| `src/modules/auth/application/controllers/auth.controller.ts` | Functional handlers delegating to use-cases with JSDoc `@openapi` blocks on every endpoint (decorators OFF) — picked up by `express_swagger_jsdoc` so `/docs` is fully populated. With decorators ON: a `@Controller`-decorated `AuthController` class |
 | `src/modules/auth/infrastructure/database/repositories/user.repository.ts` | Drizzle `UserRepository` |
 | `src/modules/auth/infrastructure/database/repositories/refresh-token.repository.ts` | Drizzle `RefreshTokenRepository` |
-| `src/routes/auth.route.ts` | Express router for /register, /login, /me, /refresh, /logout |
+| `src/routes/auth.route.ts` | When decorators OFF: Express router for /register, /login, /me, /refresh, /logout. When decorators ON: empty `export {}` (routes are registered through the `DecoratorRouter` in `src/app.ts`) |
 
 Also merges into:
 

@@ -114,6 +114,11 @@ See [docs/README.md](docs/README.md) for the complete documentation index.
 | `microservices` | N independent services, each with its own name and port |
 | `plugin-template` | A publishable dot plugin repository |
 
+The `init` flow also offers a decorator-based API option for Express backends:
+class decorators (`@Controller`, `@Get`, `@Body`, `@Response`, `@Auth`),
+request/response validation via Zod, and an OpenAPI v3 spec served at
+`/docs`. See [docs/user/decorators.md](docs/user/decorators.md).
+
 Run `dot flows` to see the up-to-date list with descriptions.
 
 ---

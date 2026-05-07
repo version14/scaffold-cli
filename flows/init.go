@@ -7,6 +7,12 @@ import (
 
 const CLEAN_ARCHITECTURE = "clean-architecture"
 const MVC_ARCHITECTURE = "mvc-architecture"
+const HEXAGONAL_ARCHITECTURE = "hexagonal-architecture"
+
+// ValidationLibZod is the ID of the Zod validation library — kept as a
+// constant so future libraries (yup, valibot, …) can be added without
+// scattering string literals.
+const ValidationLibZod = "zod"
 
 // InitFlow is the default DOT scaffolding flow. It walks the user through
 // project name → monorepo structure → language stack → linting → database → auth.
@@ -81,13 +87,35 @@ func InitFlow() *FlowDef {
 		},
 	}
 
+	validationLib := &flow.OptionQuestion{
+		QuestionBase: flow.QuestionBase{ID_: "ts-backend-validation-lib"},
+		Label:        "Validation library",
+		Description:  "Schema library used to validate request inputs and document the OpenAPI spec.",
+		Options: []*flow.Option{
+			{Label: "Zod", Value: ValidationLibZod, Next: &flow.Next{Question: formatter}},
+		},
+	}
+
+	decorators := &flow.ConfirmQuestion{
+		QuestionBase: flow.QuestionBase{ID_: "ts-backend-decorators-validation"},
+		Label:        "Use decorator-based validation and OpenAPI documentation?",
+		Description: "OpenAPI/Swagger is always available at /docs. Choose Yes for an end-to-end " +
+			"decorator API (@Controller, @Get, @Body, @Response) with automatic Zod request/response " +
+			"validation and a spec built from runtime metadata. Choose No to keep plain Express " +
+			"handlers — the generated code includes JSDoc @openapi comments that swagger-jsdoc scans " +
+			"to build the spec.",
+		Default: true,
+		Then:    &flow.Next{Question: validationLib},
+		Else:    &flow.Next{Question: formatter},
+	}
+
 	architecture := &flow.OptionQuestion{
 		QuestionBase: flow.QuestionBase{ID_: "ts-backend-architecture"},
 		Label:        "Choose your architecture.",
 		Options: []*flow.Option{
-			{Label: "Clean Architecture", Value: CLEAN_ARCHITECTURE, Next: &flow.Next{Question: formatter}},
-			{Label: "MVC", Value: MVC_ARCHITECTURE, Next: &flow.Next{Question: formatter}},
-			// {Label: "Hexagonal", Value: "hexagonal-architecture", Next: &flow.Next{Question: formatter}},
+			{Label: "Clean Architecture", Value: CLEAN_ARCHITECTURE, Next: &flow.Next{Question: decorators}},
+			{Label: "MVC", Value: MVC_ARCHITECTURE, Next: &flow.Next{Question: decorators}},
+			// {Label: "Hexagonal", Value: HEXAGONAL_ARCHITECTURE, Next: &flow.Next{Question: decorators}},
 		},
 	}
 
@@ -159,6 +187,7 @@ func resolveMonorepoGenerators(s *spec.ProjectSpec) []Invocation {
 	orm, _ := s.Answers["ts-backend-orm"].(string)
 	authEnabled, _ := s.Answers["enable-auth"].(bool)
 	authMethod, _ := s.Answers["ts-backend-auth-method"].(string)
+	decoratorsEnabled, _ := s.Answers["ts-backend-decorators-validation"].(bool)
 
 	if stack == "typescript" {
 		out = append(out, Invocation{Name: "typescript_base"})
@@ -181,6 +210,31 @@ func resolveMonorepoGenerators(s *spec.ProjectSpec) []Invocation {
 		out = append(out, Invocation{Name: "backend_architecture_clean_architecture"})
 	case MVC_ARCHITECTURE:
 		out = append(out, Invocation{Name: "backend_architecture_mvc"})
+	case HEXAGONAL_ARCHITECTURE:
+		out = append(out, Invocation{Name: "backend_architecture_hexagonal_architecture"})
+	}
+
+	if framework == "express" {
+		if decoratorsEnabled {
+			out = append(out,
+				Invocation{Name: "zod_validation_deps"},
+				Invocation{Name: "express_decorators_core"},
+				Invocation{Name: "express_openapi_setup"},
+			)
+			switch architecture {
+			case CLEAN_ARCHITECTURE:
+				out = append(out, Invocation{Name: "decorators_clean_arch_adapter"})
+			case MVC_ARCHITECTURE:
+				out = append(out, Invocation{Name: "decorators_mvc_adapter"})
+			case HEXAGONAL_ARCHITECTURE:
+				out = append(out, Invocation{Name: "decorators_hexagonal_adapter"})
+			}
+		} else {
+			// Always wire the JSDoc-based Swagger so /docs works regardless of
+			// the decorator choice — generated controllers ship with @openapi
+			// comments that swagger-jsdoc picks up at boot.
+			out = append(out, Invocation{Name: "express_swagger_jsdoc"})
+		}
 	}
 
 	if formatter == "prettier" {

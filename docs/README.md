@@ -10,6 +10,7 @@ The docs are split into two audiences. If you are **using** DOT to scaffold proj
 |------|----------------|
 | [user/getting-started.md](user/getting-started.md) | Install, first scaffold, plugin management |
 | [user/cli-reference.md](user/cli-reference.md) | Every command, flag, and exit code |
+| [user/decorators.md](user/decorators.md) | Decorator-based validation and OpenAPI documentation for Express |
 
 ---
 
@@ -38,6 +39,7 @@ One file per built-in flow. Each covers: question IDs, branching diagram, genera
 
 | File | Flow |
 |------|------|
+| [contributor/flows/init.md](contributor/flows/init.md) | `init` — default project wizard (TypeScript / Express / decorators / DB / auth) |
 | [contributor/flows/monorepo.md](contributor/flows/monorepo.md) | `monorepo` — general-purpose project wizard |
 | [contributor/flows/fullstack.md](contributor/flows/fullstack.md) | `fullstack` — TypeScript + optional React + optional Go backend |
 | [contributor/flows/microservices.md](contributor/flows/microservices.md) | `microservices` — N services via LoopQuestion |
@@ -58,6 +60,13 @@ One file per built-in generator. Each covers: answers consumed, files written, v
 | [contributor/generators/backend_architecture_mvc_architecture.md](contributor/generators/backend_architecture_mvc_architecture.md) | `backend_architecture_mvc` — MVC backend structure |
 | [contributor/generators/backend_architecture_clean_architecture.md](contributor/generators/backend_architecture_clean_architecture.md) | `backend_architecture_clean_architecture` — Clean Architecture backend structure |
 | [contributor/generators/backend_architecture_hexagonal_architecture.md](contributor/generators/backend_architecture_hexagonal_architecture.md) | `backend_architecture_hexagonal` — Hexagonal Architecture backend structure |
+| [contributor/generators/zod_validation_deps.md](contributor/generators/zod_validation_deps.md) | `zod_validation_deps` — Zod / zod-to-openapi / reflect-metadata deps + decorator tsconfig flags |
+| [contributor/generators/express_decorators_core.md](contributor/generators/express_decorators_core.md) | `express_decorators_core` — `@Controller`/`@Get`/`@Body`/… decorators + `RouterAdapter` (Express impl) |
+| [contributor/generators/express_openapi_setup.md](contributor/generators/express_openapi_setup.md) | `express_openapi_setup` — OpenAPI v3 spec generator + Swagger UI mount (decorator path) |
+| [contributor/generators/express_swagger_jsdoc.md](contributor/generators/express_swagger_jsdoc.md) | `express_swagger_jsdoc` — classic JSDoc-driven Swagger; scans `src/**/*.ts` for `@openapi` blocks |
+| [contributor/generators/decorators_clean_arch_adapter.md](contributor/generators/decorators_clean_arch_adapter.md) | `decorators_clean_arch_adapter` — wires `DecoratorRouter` into a Clean Architecture project |
+| [contributor/generators/decorators_mvc_adapter.md](contributor/generators/decorators_mvc_adapter.md) | `decorators_mvc_adapter` — wires `DecoratorRouter` into an MVC project |
+| [contributor/generators/decorators_hexagonal_adapter.md](contributor/generators/decorators_hexagonal_adapter.md) | `decorators_hexagonal_adapter` — wires `DecoratorRouter` into a Hexagonal project |
 
 ### Plugin reference (`docs/contributor/plugins/`)
 
