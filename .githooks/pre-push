@@ -2,17 +2,39 @@
 # Optional pre-push hook — runs before every `git push`.
 # Activate with: git config core.hooksPath .githooks
 #
-# Uncomment and adapt the checks below to match your project's tooling.
-# Remove checks that don't apply. Keep this hook fast — slow hooks get bypassed.
+# Strategy: Go unit tests + build always run (cheap).
+# `make test-flows` only runs when files that can affect generated projects
+# changed (it spins up pnpm install + vitest in temp dirs, which is slow).
+
+set -e
 
 echo "Running tests before push..."
-make test || exit 1
+make test
 
 echo "Running build check..."
-make build || exit 1
+make build
 
-echo "Running test-flows before push..."
-make test-flows || exit 1
+# Determine the diff range against the upstream branch. Falls back to a full
+# diff against origin/main when there is no upstream tracking branch.
+upstream=$(git rev-parse --abbrev-ref --symbolic-full-name '@{u}' 2>/dev/null || echo '')
+if [ -n "$upstream" ]; then
+  range="$upstream...HEAD"
+else
+  range="origin/main...HEAD"
+fi
 
+# Files changed since the upstream branch. Empty output = no flow-relevant
+# diff and we skip test-flows.
+changed=$(git diff --name-only "$range" 2>/dev/null || true)
+
+flow_relevant=$(printf '%s\n' "$changed" | grep -E '^(generators/|flows/|tools/test-flow/|internal/|pkg/|plugins/)' || true)
+
+if [ -n "$flow_relevant" ]; then
+  echo "Flow-relevant files changed; running make test-flows..."
+  printf '%s\n' "$flow_relevant" | sed 's/^/  - /'
+  make test-flows
+else
+  echo "No changes under generators/, flows/, tools/test-flow/, internal/, pkg/, or plugins/ — skipping make test-flows."
+fi
 
 exit 0
