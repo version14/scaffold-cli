@@ -1,5 +1,5 @@
 {
-  "name": "express_clean_arch_biome_postgres_drizzle_jwt",
+  "name": "express_clean_arch_decorators_zod",
   "flow_id": "init",
   "answers": {
     "project_name": "my-app",
@@ -7,14 +7,11 @@
     "stack": "typescript",
     "ts-backend-framework": "express",
     "ts-backend-architecture": "clean-architecture",
-    "ts-backend-decorators-validation": false,
-    "ts-backend-formatter": "biome",
-    "ts-backend-linter": "biome",
-    "enable-db": true,
-    "ts-backend-db-type": "postgres",
-    "ts-backend-orm": "drizzle",
-    "enable-auth": true,
-    "ts-backend-auth-method": "jwt",
+    "ts-backend-decorators-validation": true,
+    "ts-backend-validation-lib": "zod",
+    "ts-backend-formatter": "prettier",
+    "ts-backend-linter": "prettier",
+    "enable-db": false,
     "confirm-generate": true
   },
   "expected_visited": [
@@ -24,13 +21,10 @@
     "ts-backend-framework",
     "ts-backend-architecture",
     "ts-backend-decorators-validation",
+    "ts-backend-validation-lib",
     "ts-backend-formatter",
     "ts-backend-linter",
     "enable-db",
-    "ts-backend-db-type",
-    "ts-backend-orm",
-    "enable-auth",
-    "ts-backend-auth-method",
     "confirm-generate"
   ],
   "skip_post_commands": false,
