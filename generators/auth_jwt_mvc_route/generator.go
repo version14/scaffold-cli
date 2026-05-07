@@ -23,17 +23,34 @@ var fs embed.FS
 const authRouteImport = "import authRouter from './routes/auth.route';\n"
 const authRouteUse = "app.use('/auth', authRouter);\n"
 
+const authControllerImport = "import { AuthController } from './controllers/auth.controller';\n"
+
 func (g *Generator) Generate(ctx *dotapi.Context) error {
 	hasDB := slices.Contains(ctx.PreviousGens, "drizzle_postgres_adapter")
+	hasDecorators := slices.Contains(ctx.PreviousGens, "express_decorators_core")
 
 	renderer := render.NewLocalFolderRenderer(ctx.State)
-	if err := renderer.Render(fs, struct{ HasDB bool }{HasDB: hasDB}); err != nil {
+	if err := renderer.Render(fs, struct {
+		HasDB         bool
+		HasDecorators bool
+	}{HasDB: hasDB, HasDecorators: hasDecorators}); err != nil {
 		return err
 	}
 
 	if f, ok := ctx.State.GetFile("src/app.ts"); ok {
 		content := string(f.Content)
-		if !strings.Contains(content, "authRouter") {
+		if hasDecorators {
+			if !strings.Contains(content, "AuthController") {
+				content = authControllerImport + content
+				content = strings.Replace(
+					content,
+					".registerController(new ExampleController());",
+					".registerController(new ExampleController())\n  .registerController(new AuthController());",
+					1,
+				)
+				ctx.State.WriteFile("src/app.ts", []byte(content), state.ContentRaw)
+			}
+		} else if !strings.Contains(content, "authRouter") {
 			content = authRouteImport + content
 			if strings.Contains(content, "app.use(errorMiddleware)") {
 				content = strings.Replace(content, "app.use(errorMiddleware)", authRouteUse+"\napp.use(errorMiddleware)", 1)

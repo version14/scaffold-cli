@@ -3,6 +3,7 @@ package authjwtvanilla
 import (
 	"embed"
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/version14/dot/internal/render"
@@ -50,14 +51,22 @@ func (g *Generator) Generate(ctx *dotapi.Context) error {
 	updated := existing + fmt.Sprintf("\n# Auth (JWT)\nJWT_SECRET=%s\nJWT_EXPIRES_IN=7d\nJWT_REFRESH_EXPIRES_IN=30d\n", "change-me-to-a-random-secret")
 	ctx.State.WriteFile(".env.example", []byte(updated), state.ContentRaw)
 
-	// Inject cookie-parser middleware into app.ts
+	// Inject cookie-parser middleware into app.ts and, if decorators are
+	// active, plug the JWT auth middleware into ExpressRouterAdapter so that
+	// every @Auth()-decorated route gets gated automatically.
+	hasDecorators := slices.Contains(ctx.PreviousGens, "express_decorators_core")
+
 	if f, ok := ctx.State.GetFile("src/app.ts"); ok {
 		content := string(f.Content)
 		if !strings.Contains(content, "cookieParser") {
 			content = "import cookieParser from 'cookie-parser';\n" + content
 			content = strings.Replace(content, "app.use(express.json());", "app.use(express.json());\napp.use(cookieParser());", 1)
-			ctx.State.WriteFile("src/app.ts", []byte(content), state.ContentRaw)
 		}
+		if hasDecorators && !strings.Contains(content, "authMiddleware") {
+			content = "import { authMiddleware } from './shared/middlewares/auth.middleware';\n" + content
+			content = strings.Replace(content, "new ExpressRouterAdapter()", "new ExpressRouterAdapter({ authMiddleware })", 1)
+		}
+		ctx.State.WriteFile("src/app.ts", []byte(content), state.ContentRaw)
 	}
 
 	return nil
