@@ -10,6 +10,7 @@ var Manifest = dotapi.Manifest{
 	Outputs: []string{
 		"src/index.ts",
 		"src/app.ts",
+		"src/shared/cors.ts",
 		".env.example",
 	},
 	Validators: []dotapi.Validator{
@@ -18,6 +19,7 @@ var Manifest = dotapi.Manifest{
 			Checks: []dotapi.Check{
 				{Type: dotapi.CheckFileExists, Path: "src/index.ts"},
 				{Type: dotapi.CheckFileExists, Path: "src/app.ts"},
+				{Type: dotapi.CheckFileExists, Path: "src/shared/cors.ts"},
 			},
 		},
 	},

@@ -34,7 +34,7 @@ None directly — `flows/init.go` selects this generator when both `ts-backend-a
 
 | Path | Description |
 |------|-------------|
-| `src/app.ts` | Decorator-aware bootstrap (mounts `DecoratorRouter` at root, Swagger at `/docs`) |
+| `src/app.ts` | Decorator-aware bootstrap (imports `corsOptions` from `./shared/cors`, mounts `DecoratorRouter` at root, Swagger at `/docs`). The `src/shared/cors.ts` helper is provided by `express_server_entrypoint`; this generator reuses it as-is. |
 | `src/controllers/example.controller.ts` | `@Controller({ prefix: '/api/example' })` sample |
 | `src/shared/validators/example.schemas.ts` | Zod schemas |
 | `src/__tests__/decorators-mvc.e2e.test.ts` | Supertest E2E |
@@ -72,4 +72,5 @@ None — only one architecture-specific decorator adapter runs per scaffold.
 - [generators/express_decorators_core.md](express_decorators_core.md)
 - [generators/express_openapi_setup.md](express_openapi_setup.md)
 - [generators/backend_architecture_mvc_architecture.md](backend_architecture_mvc_architecture.md)
+- [generators/express_server_entrypoint.md](express_server_entrypoint.md) — owner of `src/shared/cors.ts`
 - [docs/user/decorators.md](../../user/decorators.md)

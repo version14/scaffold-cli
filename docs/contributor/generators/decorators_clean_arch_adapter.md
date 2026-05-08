@@ -34,7 +34,7 @@ None directly — `flows/init.go` selects this generator when both `ts-backend-a
 
 | Path | Description |
 |------|-------------|
-| `src/app.ts` | Overwritten with a decorator-aware bootstrap (mounts `DecoratorRouter` at the root, builds the OpenAPI spec, mounts Swagger at `/docs`) |
+| `src/app.ts` | Overwritten with a decorator-aware bootstrap (imports `corsOptions` from `./shared/cors`, mounts `DecoratorRouter` at the root, builds the OpenAPI spec, mounts Swagger at `/docs`). The `src/shared/cors.ts` helper itself is provided by `express_server_entrypoint`; this generator reuses it as-is. |
 | `src/modules/example/application/controllers/example.controller.ts` | `@Controller({ prefix: '/api/example' })` sample controller demonstrating `@Get`, `@Post`, `@Body`, `@Params`, `@ApiResponse` |
 | `src/modules/example/application/validators/example.schemas.ts` | Zod request/response schemas for the example controller |
 | `src/__tests__/decorators-clean.e2e.test.ts` | Supertest E2E covering 200/400 paths and `/docs/openapi.json` |
@@ -72,4 +72,5 @@ None — but the init flow only includes one of the three architecture-specific 
 - [generators/express_decorators_core.md](express_decorators_core.md)
 - [generators/express_openapi_setup.md](express_openapi_setup.md)
 - [generators/backend_architecture_clean_architecture.md](backend_architecture_clean_architecture.md)
+- [generators/express_server_entrypoint.md](express_server_entrypoint.md) — owner of `src/shared/cors.ts` (the CORS helper this generator imports)
 - [docs/user/decorators.md](../../user/decorators.md)

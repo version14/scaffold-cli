@@ -19,6 +19,10 @@ import {
  * Primary HTTP adapter for the Example domain. Real implementations would
  * inject inbound ports (use case interfaces from core/application/ports/in)
  * through the constructor.
+ *
+ * Design note: the synthetic response payloads below intentionally do **not**
+ * mirror the request input. Forward the validated DTOs (`params`, `body`) to
+ * your inbound ports and return the persisted entity instead.
  */
 @Controller({ tag: 'example', prefix: '/api/example', description: 'Sample HTTP adapter wired with decorators' })
 export class ExampleController {
@@ -27,19 +31,27 @@ export class ExampleController {
   @ApiResponse(200, 'Example fetched', exampleResponseSchema)
   @ApiResponse(404, 'Example not found')
   get(req: Request, res: Response): void {
+    // params is validated by @Params and typed as ExampleParams.
     const params = req.params as unknown as ExampleParams;
-    res.json({ id: params.id, name: 'sample', description: null });
+    void params;
+    res.json({
+      id: '33333333-3333-3333-3333-333333333333',
+      name: 'sample',
+      description: null,
+    });
   }
 
   @Post('/')
   @Body(exampleCreateSchema)
   @ApiResponse(201, 'Example created', exampleResponseSchema)
   create(req: Request, res: Response): void {
+    // body is validated by @Body and typed as ExampleCreate.
     const body = req.body as ExampleCreate;
+    void body;
     res.status(201).json({
       id: '00000000-0000-0000-0000-000000000000',
-      name: body.name,
-      description: body.description ?? null,
+      name: 'created',
+      description: null,
     });
   }
 }
