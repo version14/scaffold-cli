@@ -20,7 +20,7 @@ var Manifest = dotapi.Manifest{
 		"vite.config.ts",
 	},
 	PostGenerationCommands: []dotapi.Command{
-		{Cmd: "pnpm install"},
+		{Cmd: "pnpm install --dangerously-allow-all-builds"},
 	},
 	TestCommands: []dotapi.Command{
 		{Cmd: "pnpm exec tsc --noEmit"},
