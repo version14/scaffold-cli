@@ -16,7 +16,7 @@ var Manifest = dotapi.Manifest{
 		"tsconfig.json",
 	},
 	PostGenerationCommands: []dotapi.Command{
-		{Cmd: "pnpm install"},
+		{Cmd: "pnpm install --dangerously-allow-all-builds"},
 	},
 	TestCommands: []dotapi.Command{
 		{Cmd: "pnpm install --dangerously-allow-all-builds"},

@@ -9,7 +9,7 @@ var Manifest = dotapi.Manifest{
 	DependsOn:   []string{"prettier_config", "*"},
 	Outputs:     []string{},
 	PostGenerationCommands: []dotapi.Command{
-		{Cmd: "pnpm install"},
+		{Cmd: "pnpm install --dangerously-allow-all-builds"},
 		{Cmd: "pnpm format"},
 	},
 	TestCommands: []dotapi.Command{

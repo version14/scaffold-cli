@@ -287,7 +287,7 @@ var Manifest = dotapi.Manifest{
         },
     },
     PostGenerationCommands: []dotapi.Command{
-        {Cmd: "pnpm install", WorkDir: ""},
+        {Cmd: "pnpm install --dangerously-allow-all-builds", WorkDir: ""},
     },
 }
 ```
@@ -376,7 +376,7 @@ Run after the entire generator pipeline has finished and files have been persist
 
 ```go
 PostGenerationCommands: []dotapi.Command{
-    {Cmd: "pnpm install"},
+    {Cmd: "pnpm install --dangerously-allow-all-builds"},
     {Cmd: "go mod tidy", WorkDir: "api"},
 },
 ```
@@ -411,7 +411,7 @@ Background commands are started, waited on for `ReadyDelay`, checked for crash, 
 ```go
 PostGenerationCommands: []dotapi.Command{
     // Cacheable by default — no extra field needed.
-    {Cmd: "pnpm install"},
+    {Cmd: "pnpm install --dangerously-allow-all-builds"},
 },
 TestCommands: []dotapi.Command{
     {Cmd: "pnpm exec tsc --noEmit"},
