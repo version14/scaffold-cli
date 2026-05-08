@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/version14/dot/flows"
@@ -13,6 +14,15 @@ import (
 	"github.com/version14/dot/internal/generator"
 	"github.com/version14/dot/pkg/dotapi"
 )
+
+// invocationNames returns just the names from a slice of Invocations, in order.
+func invocationNames(invs []generator.Invocation) []string {
+	out := make([]string, len(invs))
+	for i, inv := range invs {
+		out[i] = inv.Name
+	}
+	return out
+}
 
 // scriptedAdapter answers each question from a recorded map.
 //
@@ -133,6 +143,10 @@ type caseOptions struct {
 	skipPostCommands bool   // skip PostGenerationCommands globally
 	skipTestCommands bool   // skip TestCommands globally
 	keepScratch      bool   // when true, do NOT delete the scratch dir on exit
+	noCache          bool   // when true, ignore cache hits and refresh entries
+	caseFile         string // absolute path to the testdata JSON for this case
+	repoRoot         string // absolute path to the dot repo root
+	flowsDir         string // absolute path to the flows/ directory
 }
 
 // runOne drives one TestCase through the full pipeline:
@@ -219,8 +233,42 @@ func runOne(
 		rep.Step("validators", true, fmt.Sprintf("%d passed", countChecks(res.Manifests)), nil)
 	}
 
-	// Step 3: post-generation commands.
-	if !opts.skipPostCommands && !tc.SkipPostCommands {
+	// Step 2.5: case-level cache check. Skips post-gen + test commands when
+	// the fingerprint matches a previous successful run AND every command
+	// across the involved manifests is opted-in via Cacheable=true.
+	cacheHit := false
+	fingerprint, fpErr := ComputeFingerprint(CacheKeyInputs{
+		CaseFile:      opts.caseFile,
+		FlowsDir:      opts.flowsDir,
+		Invocations:   res.Invocations,
+		Manifests:     res.Manifests,
+		SkipPostFlag:  opts.skipPostCommands || tc.SkipPostCommands,
+		SkipTestFlag:  opts.skipTestCommands || tc.SkipTestCommands,
+		GeneratorsDir: filepath.Join(opts.repoRoot, "generators"),
+		RepoRoot:      opts.repoRoot,
+	})
+
+	if fpErr != nil {
+		rep.Step("cache fingerprint", false, "", fpErr)
+	} else if !opts.noCache {
+		entry, err := LoadCacheEntry(opts.repoRoot, tc.Name)
+		if err != nil {
+			rep.Step("cache load", false, "", err)
+		}
+		if entry != nil && entry.Fingerprint == fingerprint && AllCommandsCacheable(res.Manifests) {
+			rep.Step("cache", true, "HIT — skipping post-gen + test commands", nil)
+			cacheHit = true
+		} else if entry != nil && entry.Fingerprint == fingerprint && !AllCommandsCacheable(res.Manifests) {
+			blocking := NonCacheableCommands(res.Manifests)
+			detail := fmt.Sprintf("%d non-cacheable command(s) — running anyway", len(blocking))
+			rep.Step("cache", true, detail, nil)
+		}
+	}
+
+	// Step 3: post-generation commands (skipped on cache hit).
+	if cacheHit {
+		// Cache hit short-circuits both post-gen and test commands.
+	} else if !opts.skipPostCommands && !tc.SkipPostCommands {
 		postPlan := cli.PlanPostGenCommands(res.Spec, res.Manifests)
 		if len(postPlan) > 0 {
 			rep.Substep("post-gen commands", len(postPlan))
@@ -233,7 +281,9 @@ func runOne(
 	}
 
 	// Step 4: test commands (incl. background dev servers).
-	if !opts.skipTestCommands && !tc.SkipTestCommands {
+	if cacheHit {
+		// see above
+	} else if !opts.skipTestCommands && !tc.SkipTestCommands {
 		testPlan := cli.PlanTestCommands(res.Spec, res.Manifests)
 		if len(testPlan) > 0 {
 			rep.Substep("test commands", len(testPlan))
@@ -243,6 +293,22 @@ func runOne(
 		}
 	} else {
 		rep.Step("test commands", true, "skipped", nil)
+	}
+
+	// Persist a fresh cache entry on full success. Failed runs intentionally
+	// leave no trace so the next invocation retries them.
+	if r.Pass() && fingerprint != "" && AllCommandsCacheable(res.Manifests) {
+		entry := CacheEntry{
+			SchemaVersion: cacheSchemaVersion,
+			Fingerprint:   fingerprint,
+			CaseName:      tc.Name,
+			FlowID:        tc.FlowID,
+			LastSuccessAt: time.Now().UTC().Format(time.RFC3339),
+			Generators:    invocationNames(res.Invocations),
+		}
+		if err := SaveCacheEntry(opts.repoRoot, entry); err != nil {
+			rep.Step("cache save", false, "", err)
+		}
 	}
 
 	rep.CaseEnd(r.Pass())

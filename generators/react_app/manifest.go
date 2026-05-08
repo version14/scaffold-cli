@@ -26,7 +26,9 @@ var Manifest = dotapi.Manifest{
 		{Cmd: "pnpm exec tsc --noEmit"},
 		{Cmd: "pnpm exec vite build"},
 		// Smoke-start the dev server in background to confirm it boots.
-		{Cmd: "pnpm exec vite", Background: true, ReadyDelay: 4 * time.Second},
+		// NoCache: true — we want a real boot every run to catch
+		// port-binding / runtime regressions, not skip on a cache hit.
+		{Cmd: "pnpm exec vite", Background: true, ReadyDelay: 4 * time.Second, NoCache: true},
 	},
 	Validators: []dotapi.Validator{
 		{

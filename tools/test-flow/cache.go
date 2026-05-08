@@ -17,6 +17,8 @@ import (
 //	ExpectedIDs      — optional list of question IDs the engine MUST visit
 //	SkipPostCommands — when true, do not run PostGenerationCommands
 //	SkipTestCommands — when true, do not run TestCommands
+//	SourcePath       — absolute path to the JSON file (set by LoadCases),
+//	                  used to fingerprint the case for the test-flow cache.
 type TestCase struct {
 	Name             string                 `json:"name"`
 	FlowID           string                 `json:"flow_id"`
@@ -25,6 +27,8 @@ type TestCase struct {
 	ExpectedIDs      []string               `json:"expected_visited,omitempty"`
 	SkipPostCommands bool                   `json:"skip_post_commands,omitempty"`
 	SkipTestCommands bool                   `json:"skip_test_commands,omitempty"`
+
+	SourcePath string `json:"-"`
 }
 
 // LoadCases reads every *.json file under dir and parses it as a TestCase.
@@ -48,6 +52,11 @@ func LoadCases(dir string) ([]*TestCase, error) {
 		if tc.Name == "" {
 			tc.Name = e.Name()
 		}
+		abs, err := filepath.Abs(path)
+		if err != nil {
+			abs = path
+		}
+		tc.SourcePath = abs
 		cases = append(cases, tc)
 	}
 	return cases, nil

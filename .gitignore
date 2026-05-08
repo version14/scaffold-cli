@@ -55,3 +55,6 @@ temp/
 .cache/
 
 .devfleet-worktrees/
+
+# test-flow case-level cache (per-machine state; safe to delete to force a full re-run)
+.test-flow-cache/

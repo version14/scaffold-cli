@@ -97,6 +97,99 @@ make test-flow            # equivalent to go run ./tools/test-flow -skip-test
 | `-skip-test` | `false` | Skip all `TestCommands` globally. Overrides the fixture's `skip_test_commands`. |
 | `-only NAMES` | (all) | Comma-separated list of fixture `name` values to run. |
 | `-keep` | `false` | Do not delete scratch directories after the run. Lets you inspect generated files. |
+| `-no-cache` | `false` | Ignore cache hits and re-run every case from scratch. Cache entries are still refreshed on success. |
+| `-keep-going` | `false` | Continue running remaining cases after a failure. Without this flag the runner stops at the **first** failing case (fail-fast is the default). |
+
+---
+
+## Fail-fast (default)
+
+The runner stops at the first failing case so you see the failure immediately instead of waiting for the rest of the suite. The summary reports how many cases were skipped:
+
+```
+✗ 1/18 cases failed (10 not run)
+
+Stopped at first failure (pass -keep-going to run every case).
+```
+
+Pass `-keep-going` when you want a full report — typical for triaging multiple unrelated failures or generating an artefact-rich CI run:
+
+```bash
+go run ./tools/test-flow -keep-going          # run everything, then summarize
+make test-flows -- -keep-going                # via the Makefile shortcut
+```
+
+Failed cases never write to `.test-flow-cache/`, so re-running after a fix only retries cases that didn't pass last time (if combined with the cache).
+
+---
+
+## Case-level cache
+
+`test-flow` keeps a per-case cache under `.test-flow-cache/` (gitignored) so the second run of an unchanged case completes in well under a second instead of multiple minutes. A typical full warm run finishes in ~3-5 s vs. ~7 min cold.
+
+### How a cache hit is decided
+
+1. The runner always re-runs the cheap stages: flow → generator resolution → file persistence → validators. These take <1 s per case.
+2. Once the resolved invocation list is known, the runner computes a SHA-256 fingerprint over:
+   - the fixture's JSON file (raw bytes),
+   - every involved generator's source tree (`generators/<name>/` recursively, sorted by name),
+   - the entire `flows/` directory (any flow definition edit invalidates),
+   - `pkg/dotapi/` (Manifest schema changes invalidate),
+   - `tools/test-flow/` (cache logic + runner changes invalidate),
+   - the `-skip-post` / `-skip-test` flags (different modes get different cache slots),
+   - a schema version constant inside `cache_persist.go` (bump it to force-invalidate every cache entry).
+3. The cache hits **only when both** of these are true:
+   - the previous successful run's fingerprint matches, AND
+   - no `PostGenerationCommand` or `TestCommand` across the involved manifests is marked `NoCache: true` (commands are cacheable by default).
+4. On a hit, post-gen and test commands are skipped entirely; the case is reported with `cache: HIT — skipping post-gen + test commands`.
+
+### Cache misses
+
+A miss can be caused by any of:
+
+- editing a fixture JSON file,
+- editing any generator that the case resolves to,
+- editing a flow definition (`flows/*.go`),
+- editing `pkg/dotapi/manifest.go` (or anything else under `pkg/dotapi/`),
+- bumping the cache schema constant,
+- a generator marking a command `NoCache: true` (a single such command anywhere in the resolved invocation set forces the entire case to re-run).
+
+When a fingerprint exists but at least one command is `NoCache: true`, the report shows `cache: HIT — N non-cacheable command(s) — running anyway` and the case re-runs.
+
+### Forcing a re-run
+
+```bash
+go run ./tools/test-flow -no-cache                  # ignore all cache hits
+go run ./tools/test-flow -no-cache -only my_case    # for a single case
+rm -rf .test-flow-cache                             # nuclear option
+```
+
+Failed runs intentionally leave **no** cache entry — that way the next invocation always retries them.
+
+### Cacheable by default — opt out with `NoCache`
+
+Commands are cacheable by default. The contract: "given identical scaffolded inputs, the command's outcome is the same." Examples that qualify automatically (no extra field needed):
+
+- `pnpm install`, `pnpm exec tsc --noEmit`, `pnpm exec vitest run …`
+- `pnpm exec biome check .`, `pnpm format:check`
+- `pnpm db:generate`, `cp .env.example .env` (idempotent, project-local)
+
+Set `NoCache: true` on commands that must run every invocation:
+
+```go
+TestCommands: []dotapi.Command{
+    // Smoke-start the real dev server every run to catch port-binding regressions.
+    {Cmd: "pnpm exec vite", Background: true, ReadyDelay: 4 * time.Second, NoCache: true},
+},
+```
+
+Common reasons to opt out:
+
+- Background dev-server smoke-starts (`react_app`) — we want a real boot every run.
+- Network-touching one-shots whose result depends on remote state at run time.
+- Anything you simply aren't sure is deterministic.
+
+The cache only fires when **no** command in the resolved invocation set has `NoCache: true` — a single opt-out forces the case to re-run.
 
 ---
 

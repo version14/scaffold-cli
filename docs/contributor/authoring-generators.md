@@ -404,6 +404,35 @@ TestCommands: []dotapi.Command{
 
 Background commands are started, waited on for `ReadyDelay`, checked for crash, and then sent `SIGTERM`. This lets you test that a dev server starts without having to stop it manually.
 
+### NoCache (caching is opt-out)
+
+`Command` has a `NoCache bool` field used by `test-flow`'s case-level cache. **The default is cacheable** — on a fingerprint match the test-flow runner can skip the command. Set `NoCache: true` only when the command must run every invocation regardless of cache state.
+
+```go
+PostGenerationCommands: []dotapi.Command{
+    // Cacheable by default — no extra field needed.
+    {Cmd: "pnpm install"},
+},
+TestCommands: []dotapi.Command{
+    {Cmd: "pnpm exec tsc --noEmit"},
+    {Cmd: "pnpm exec vitest run unit"},
+    {Cmd: "pnpm exec biome check ."},
+
+    // Opt out: smoke-start the real dev server on every run.
+    {Cmd: "pnpm exec vite", Background: true, ReadyDelay: 4 * time.Second, NoCache: true},
+},
+```
+
+The case-level cache only short-circuits when **no** PostGen/Test command across the involved manifests has `NoCache: true`. A single opt-out anywhere in the resolved set forces the case to re-run from scratch.
+
+Set `NoCache: true` when:
+
+- the command starts a real Background process whose actual boot you want re-verified on every run (`pnpm exec vite` with `Background: true` in `react_app` is the canonical example),
+- the command depends on remote state with no pinned snapshot (an unpinned network call against a live API, etc.),
+- you simply aren't confident the outcome is deterministic.
+
+See [test-flow.md — Case-level cache](test-flow.md#case-level-cache) for invalidation rules and the `-no-cache` flag.
+
 ---
 
 ## Registering a generator

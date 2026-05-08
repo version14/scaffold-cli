@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"syscall"
 
 	"github.com/version14/dot/flows"
@@ -45,6 +46,8 @@ func main() {
 	skipTest := flag.Bool("skip-test", false, "skip every TestCommand (faster iteration; default: run them)")
 	only := flag.String("only", "", "comma-separated subset of case names to run")
 	keep := flag.Bool("keep", false, "do not delete per-case scratch dirs (so you can inspect outputs)")
+	noCache := flag.Bool("no-cache", false, "ignore cache hits and re-run every case from scratch (cache entries are still refreshed on success)")
+	keepGoing := flag.Bool("keep-going", false, "continue running remaining cases after a failure (default: stop at the first failure)")
 	flag.Parse()
 
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
@@ -77,13 +80,26 @@ func main() {
 	rep := NewReporter(len(cases))
 	results := make([]*Result, 0, len(cases))
 
+	repoRoot, err := os.Getwd()
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "test-flow:", err)
+		os.Exit(2)
+	}
+	repoRoot, _ = filepath.Abs(repoRoot)
+
 	opts := caseOptions{
 		tempDirRoot:      *tmpRoot,
 		skipPostCommands: *skipPost,
 		skipTestCommands: *skipTest,
 		keepScratch:      *keep,
+		noCache:          *noCache,
+		repoRoot:         repoRoot,
 	}
 
+	// Fail-fast by default — stop the loop on the first failing case so
+	// developers see the failure immediately instead of waiting for the
+	// remaining cases to finish. Pass -keep-going to run every case.
+	stopped := false
 	for _, tc := range cases {
 		if tc.Disabled {
 			continue
@@ -96,14 +112,48 @@ func main() {
 			rep.Step("flow lookup", false, "", r.Err)
 			rep.CaseEnd(false)
 			results = append(results, r)
+			if !*keepGoing {
+				stopped = true
+				break
+			}
 			continue
 		}
-		results = append(results, runOne(ctx, tc, def, rt, rep, opts))
+
+		caseOpts := opts
+		caseOpts.caseFile = tc.SourcePath
+		caseOpts.flowsDir = flowsDir(repoRoot)
+
+		r := runOne(ctx, tc, def, rt, rep, caseOpts)
+		results = append(results, r)
+		if !r.Pass() && !*keepGoing {
+			stopped = true
+			break
+		}
 	}
 
-	if Summarize(os.Stdout, results) > 0 {
+	if stopped {
+		fmt.Fprintln(os.Stdout)
+		fmt.Fprintln(os.Stdout, "Stopped at first failure (pass -keep-going to run every case).")
+	}
+
+	totalCases := 0
+	for _, c := range cases {
+		if !c.Disabled {
+			totalCases++
+		}
+	}
+	if Summarize(os.Stdout, results, totalCases) > 0 {
 		os.Exit(1)
 	}
+}
+
+// flowsDir returns the absolute path to the flows/ directory. The cache
+// fingerprint hashes the whole directory so any edit to a flow definition
+// invalidates every case (that's the desired behaviour: it's hard to tell
+// from a flow ID alone which Go file produced it, and over-invalidation is
+// safer than missing a relevant change).
+func flowsDir(repoRoot string) string {
+	return filepath.Join(repoRoot, "flows")
 }
 
 // filterCases narrows cases to those whose Name appears in the comma-separated
