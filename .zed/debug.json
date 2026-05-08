@@ -4,12 +4,12 @@
 // see: https://zed.dev/docs/debugger
 [
   {
-    "label": "Debug dot scaffold monorepo",
+    "label": "Debug dot scaffold",
     "adapter": "Delve",
     "request": "launch",
     "mode": "debug",
     "program": "cmd/dot/main.go",
-    "args": ["scaffold", "monorepo"]
+    "args": ["scaffold"]
   },
 
 ]
