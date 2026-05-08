@@ -53,6 +53,10 @@ This guide answers the question **"where do I look?"** for any change you might 
 | Fix a generator's file output | `generators/<name>/generator.go` | [generators/<name>.md](generators/) |
 | Add a validator to a generator | `generators/<name>/manifest.go` — `Validators` field | [authoring-generators.md — validators](authoring-generators.md#validators) |
 | Add a post-gen or test command | `generators/<name>/manifest.go` — `PostGenerationCommands` / `TestCommands` | [authoring-generators.md — commands](authoring-generators.md#postgenerationcommands-and-testcommands) |
+| Opt a command **out** of the test-flow cache | `generators/<name>/manifest.go` — set `NoCache: true` on the `dotapi.Command{}` (commands are cacheable by default) | [authoring-generators.md — NoCache](authoring-generators.md#nocache-caching-is-opt-out), [test-flow.md — Case-level cache](test-flow.md#case-level-cache) |
+| Force a full test-flow re-run | `go run ./tools/test-flow -no-cache` (or `rm -rf .test-flow-cache`) | [test-flow.md — Forcing a re-run](test-flow.md#forcing-a-re-run) |
+| Run every test-flow case even after a failure | Pass `-keep-going` (the runner is fail-fast by default) | [test-flow.md — Fail-fast](test-flow.md#fail-fast-default) |
+| Bump the test-flow cache schema (invalidate every entry) | `tools/test-flow/cache_persist.go` — increment `cacheSchemaVersion` | [test-flow.md — Case-level cache](test-flow.md#case-level-cache) |
 | Fix dependency ordering | `generators/<name>/manifest.go` — `DependsOn` + `internal/generator/sorter.go` | [architecture.md — generator pipeline](architecture.md#generator-pipeline) |
 | Fix the topological sort | `internal/generator/sorter.go` | [architecture.md — generator pipeline](architecture.md#generator-pipeline) |
 | Fix transitive dep resolution | `internal/generator/resolver.go` | — |

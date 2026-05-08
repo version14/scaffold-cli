@@ -49,6 +49,18 @@ type Manifest struct {
 // The runner starts them, waits ReadyDelay for them to settle, verifies the
 // process did not crash, then sends SIGTERM. Foreground commands run to
 // completion and their exit code is checked.
+//
+// NoCache = true tells the test-flow runner that this command must run on
+// every invocation regardless of cache state. The DEFAULT (false) is that
+// commands are cacheable — i.e. their outcome is assumed deterministic
+// given the same scaffolded inputs, and the case-level cache may skip them
+// on a fingerprint match. Set NoCache=true when the command depends on
+// state outside the project (unpinned network calls, a dev-server probe
+// whose port binding you want re-verified on every run) or when you simply
+// aren't sure the outcome is deterministic.
+//
+// A single NoCache=true command anywhere in the resolved invocation set
+// forces the entire case to re-run from scratch.
 type Command struct {
 	Cmd        string
 	WorkDir    string
@@ -56,6 +68,10 @@ type Command struct {
 	// ReadyDelay is how long to wait before considering a Background command
 	// "ready" (default 3s when zero).
 	ReadyDelay time.Duration
+	// NoCache opts the command OUT of the test-flow case-level cache.
+	// Default (false) means the command is cacheable. See the docstring
+	// above for the full contract.
+	NoCache bool
 }
 
 // Validator is a named bundle of structural checks the engine runs to verify

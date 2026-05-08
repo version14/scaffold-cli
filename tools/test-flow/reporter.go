@@ -100,7 +100,11 @@ func (r *StepReporter) CaseEnd(pass bool) {
 }
 
 // Summarize prints the bottom-line tally and returns the failure count.
-func Summarize(w io.Writer, results []*Result) int {
+//
+// total is the number of cases the runner intended to run (i.e. after
+// disabled / -only filtering). When fail-fast stops the loop, len(results)
+// is smaller than total and the summary makes that distinction visible.
+func Summarize(w io.Writer, results []*Result, total int) int {
 	failed := 0
 	for _, r := range results {
 		if !r.Pass() {
@@ -108,13 +112,19 @@ func Summarize(w io.Writer, results []*Result) int {
 		}
 	}
 	fmt.Fprintln(w)
-	if failed == 0 {
+	if failed == 0 && len(results) == total {
 		fmt.Fprintln(w, titleStyle.Render(
-			fmt.Sprintf("✓ All %d cases passed", len(results)),
+			fmt.Sprintf("✓ All %d cases passed", total),
+		))
+	} else if failed == 0 {
+		// Loop exited early but everything that ran passed (e.g. ctx
+		// cancelled). Report what actually executed.
+		fmt.Fprintln(w, titleStyle.Render(
+			fmt.Sprintf("✓ %d/%d cases passed (loop ended early)", len(results), total),
 		))
 	} else {
 		fmt.Fprintln(w, failStyle.Render(
-			fmt.Sprintf("✗ %d/%d cases failed", failed, len(results)),
+			fmt.Sprintf("✗ %d/%d cases failed (%d not run)", failed, total, total-len(results)),
 		))
 		for _, r := range results {
 			if r.Pass() {

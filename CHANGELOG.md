@@ -26,6 +26,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `auth_better_auth` no longer emits an unused `src/routes/auth.route.ts`;
   the BetterAuth catch-all (`toNodeHandler(auth)`) is mounted directly in
   `src/app.ts`.
+- Case-level cache for `tools/test-flow`. A SHA-256 fingerprint over the
+  fixture, every involved generator's source tree, the entire `flows/`
+  directory, `pkg/dotapi/`, and `tools/test-flow/` itself is computed once
+  scaffolding has resolved. On a hit, post-gen + test commands are skipped
+  with a `cache: HIT` line in the report. Typical full warm runs go from
+  ~7 min to ~4 s. Failed runs intentionally leave no cache entry. Disable
+  with `-no-cache` or by removing `.test-flow-cache/`.
+- `dotapi.Command.NoCache` field. Commands are **cacheable by default**;
+  generator authors opt out by setting `NoCache: true` on the relevant
+  `dotapi.Command{}`. The case-level cache only short-circuits a case when
+  no PostGen/Test command involved has `NoCache: true`. The Background
+  dev-server probe in `react_app` (`pnpm exec vite`) ships with
+  `NoCache: true` so a real boot is verified on every run. Cache schema
+  bumped to v2 — existing `.test-flow-cache/` entries are invalidated
+  automatically.
+- `tools/test-flow` is now **fail-fast** by default — it stops at the first
+  failing case so the failure surfaces immediately. Pass `-keep-going` to
+  run every case (useful for triaging multiple unrelated failures or for
+  CI runs that want a complete report). The summary line distinguishes
+  total / failed / not run, e.g. `✗ 1/18 cases failed (10 not run)`.
 
 ### Changed
 ### Deprecated
