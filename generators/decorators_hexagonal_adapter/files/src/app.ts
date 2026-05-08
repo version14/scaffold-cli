@@ -6,11 +6,12 @@ import {
   ExpressRouterAdapter,
 } from './shared/decorators';
 import { buildOpenApiSpec, createRegistry, mountSwagger } from './shared/openapi';
+import { corsOptions } from './shared/cors';
 import { ExampleController } from './adapters/primary/http/controllers/example.controller';
 
 const app = express();
 
-app.use(cors());
+app.use(cors(corsOptions()));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 

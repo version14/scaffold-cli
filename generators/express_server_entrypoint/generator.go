@@ -24,7 +24,13 @@ func (g *Generator) Generate(ctx *dotapi.Context) error {
 		return err
 	}
 
-	// Base .env.example — downstream generators append their own vars
-	ctx.State.WriteFile(".env.example", []byte("PORT=3000\n"), state.ContentRaw)
+	// Base .env.example — downstream generators append their own vars.
+	// CORS_ORIGIN is consumed by src/shared/cors.ts: "*" allows any origin
+	// (dev only), a comma-separated list restricts to those origins, and
+	// unset falls back to http://localhost:3000.
+	envExample := "PORT=3000\n" +
+		"# Comma-separated list of allowed origins, or \"*\" for any.\n" +
+		"CORS_ORIGIN=http://localhost:3000\n"
+	ctx.State.WriteFile(".env.example", []byte(envExample), state.ContentRaw)
 	return nil
 }
