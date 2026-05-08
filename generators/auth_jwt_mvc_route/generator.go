@@ -37,7 +37,9 @@ func (g *Generator) Generate(ctx *dotapi.Context) error {
 		return err
 	}
 
-	if f, ok := ctx.State.GetFile("src/app.ts"); ok {
+	appPath := "src/app.ts"
+
+	if f, ok := ctx.State.GetFile(appPath); ok {
 		content := string(f.Content)
 		if hasDecorators {
 			if !strings.Contains(content, "AuthController") {
@@ -48,7 +50,7 @@ func (g *Generator) Generate(ctx *dotapi.Context) error {
 					".registerController(new ExampleController())\n  .registerController(new AuthController());",
 					1,
 				)
-				ctx.State.WriteFile("src/app.ts", []byte(content), state.ContentRaw)
+				ctx.State.WriteFile(appPath, []byte(content), state.ContentRaw)
 			}
 		} else if !strings.Contains(content, "authRouter") {
 			content = authRouteImport + content
@@ -57,7 +59,7 @@ func (g *Generator) Generate(ctx *dotapi.Context) error {
 			} else {
 				content = strings.Replace(content, "export default app;", authRouteUse+"\nexport default app;", 1)
 			}
-			ctx.State.WriteFile("src/app.ts", []byte(content), state.ContentRaw)
+			ctx.State.WriteFile(appPath, []byte(content), state.ContentRaw)
 		}
 	}
 

@@ -28,7 +28,7 @@ export interface BuildSpecOptions {
 }
 
 function pathToOpenApi(path: string): string {
-  return path.replace(/:([A-Za-z0-9_]+)/g, '{$1}');
+  return path.replaceAll(/:([A-Za-z0-9_]+)/g, '{$1}');
 }
 
 function buildResponses(route: RegisteredRoute): RouteConfig['responses'] {
