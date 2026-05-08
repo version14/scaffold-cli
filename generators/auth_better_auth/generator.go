@@ -63,8 +63,9 @@ func (g *Generator) Generate(ctx *dotapi.Context) error {
 			imports := "import { toNodeHandler } from 'better-auth/node';\nimport { auth } from './lib/auth';\n"
 			content = imports + content
 			mount := "app.all('/api/auth/*', toNodeHandler(auth));\n\n"
-			if strings.Contains(content, "export default app;") {
-				content = strings.Replace(content, "export default app;", mount+"export default app;", 1)
+			exportText := "export default app;"
+			if strings.Contains(content, exportText) {
+				content = strings.Replace(content, exportText, mount+exportText, 1)
 			} else {
 				content += "\n" + mount
 			}

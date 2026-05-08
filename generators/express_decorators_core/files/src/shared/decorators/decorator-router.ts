@@ -55,7 +55,7 @@ export class DecoratorRouter<NativeRouter = unknown> {
     for (const route of routes) {
       const handler = (instance as Record<string, unknown>)[route.handlerName];
       if (typeof handler !== 'function') {
-        throw new Error(`DecoratorRouter: handler "${route.handlerName}" is not callable`);
+        throw new TypeError(`DecoratorRouter: handler "${route.handlerName}" is not callable`);
       }
 
       const validation = getValidation(proto, route.handlerName);

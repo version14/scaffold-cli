@@ -2,6 +2,8 @@ package zodvalidationdeps
 
 import "github.com/version14/dot/pkg/dotapi"
 
+var packageFileName = "package.json"
+
 var Manifest = dotapi.Manifest{
 	Name:        "zod_validation_deps",
 	Version:     "0.1.0",
@@ -12,10 +14,10 @@ var Manifest = dotapi.Manifest{
 		{
 			Name: "zod-validation-deps",
 			Checks: []dotapi.Check{
-				{Type: dotapi.CheckJSONKeyExists, Path: "package.json", Key: "dependencies.zod"},
-				{Type: dotapi.CheckJSONKeyExists, Path: "package.json", Key: "dependencies.@asteasolutions/zod-to-openapi"},
-				{Type: dotapi.CheckJSONKeyExists, Path: "package.json", Key: "dependencies.reflect-metadata"},
-				{Type: dotapi.CheckJSONKeyExists, Path: "package.json", Key: "dependencies.swagger-ui-express"},
+				{Type: dotapi.CheckJSONKeyExists, Path: packageFileName, Key: "dependencies.zod"},
+				{Type: dotapi.CheckJSONKeyExists, Path: packageFileName, Key: "dependencies.@asteasolutions/zod-to-openapi"},
+				{Type: dotapi.CheckJSONKeyExists, Path: packageFileName, Key: "dependencies.reflect-metadata"},
+				{Type: dotapi.CheckJSONKeyExists, Path: packageFileName, Key: "dependencies.swagger-ui-express"},
 			},
 		},
 	},

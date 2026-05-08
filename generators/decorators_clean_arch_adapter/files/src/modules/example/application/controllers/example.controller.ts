@@ -34,11 +34,10 @@ export class ExampleController {
     // params is validated by @Params and typed as ExampleParams.
     // Use it to call your repository: `repo.findById(params.id)`.
     const params = req.params as unknown as ExampleParams;
-    void params;
     res.json({
       id: '11111111-1111-1111-1111-111111111111',
       name: 'sample',
-      description: null,
+      description: JSON.stringify(params),
     });
   }
 
@@ -49,11 +48,10 @@ export class ExampleController {
     // body is validated by @Body and typed as ExampleCreate.
     // Forward it to a CreateExampleUseCase and return the persisted entity.
     const body = req.body as ExampleCreate;
-    void body;
     res.status(201).json({
       id: '00000000-0000-0000-0000-000000000000',
       name: 'created',
-      description: null,
+      description: JSON.stringify(body),
     });
   }
 }

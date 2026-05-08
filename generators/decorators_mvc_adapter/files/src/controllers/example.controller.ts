@@ -33,11 +33,10 @@ export class ExampleController {
   get(req: Request, res: Response): void {
     // params is validated by @Params and typed as ExampleParams.
     const params = req.params as unknown as ExampleParams;
-    void params;
     res.json({
       id: '22222222-2222-2222-2222-222222222222',
       name: 'sample',
-      description: null,
+      description: JSON.stringify(params),
     });
   }
 
@@ -47,11 +46,10 @@ export class ExampleController {
   create(req: Request, res: Response): void {
     // body is validated by @Body and typed as ExampleCreate.
     const body = req.body as ExampleCreate;
-    void body;
     res.status(201).json({
       id: '00000000-0000-0000-0000-000000000000',
       name: 'created',
-      description: null,
+      description: JSON.stringify(body),
     });
   }
 }
