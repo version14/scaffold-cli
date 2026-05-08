@@ -3,6 +3,7 @@ package state
 import (
 	"encoding/json"
 	"fmt"
+	"sort"
 	"strings"
 )
 
@@ -104,6 +105,67 @@ func (d *JSONDoc) DeleteKey(path string) {
 		cursor = next
 	}
 	delete(cursor, keys[len(keys)-1])
+}
+
+// AppendStringSet appends string values into the array at the dotted path,
+// deduplicating and sorting the result for deterministic output. Intermediate
+// objects and the array itself are created if missing — this is the right
+// helper when several generators each contribute entries to a shared list
+// (e.g. `pnpm.onlyBuiltDependencies`). Returns an error if a non-array value
+// already lives at path or any intermediate segment is not an object.
+func (d *JSONDoc) AppendStringSet(path string, values ...string) error {
+	keys := splitPath(path)
+	if len(keys) == 0 {
+		return fmt.Errorf("json: empty path")
+	}
+	cursor := d.root
+	for i, k := range keys[:len(keys)-1] {
+		next, ok := cursor[k]
+		if !ok {
+			child := map[string]interface{}{}
+			cursor[k] = child
+			cursor = child
+			continue
+		}
+		child, ok := next.(map[string]interface{})
+		if !ok {
+			return fmt.Errorf("json: %q is not an object at segment %d", path, i)
+		}
+		cursor = child
+	}
+	leaf := keys[len(keys)-1]
+	seen := map[string]struct{}{}
+	out := make([]string, 0, len(values))
+	switch existing := cursor[leaf].(type) {
+	case nil:
+		// fresh array
+	case []interface{}:
+		for _, v := range existing {
+			s, ok := v.(string)
+			if !ok {
+				return fmt.Errorf("json: %q contains non-string element", path)
+			}
+			if _, dup := seen[s]; !dup {
+				seen[s] = struct{}{}
+				out = append(out, s)
+			}
+		}
+	default:
+		return fmt.Errorf("json: %q is not an array", path)
+	}
+	for _, v := range values {
+		if _, dup := seen[v]; !dup {
+			seen[v] = struct{}{}
+			out = append(out, v)
+		}
+	}
+	sort.Strings(out)
+	arr := make([]interface{}, len(out))
+	for i, s := range out {
+		arr[i] = s
+	}
+	cursor[leaf] = arr
+	return nil
 }
 
 // AddDep is a convenience for the common case of adding a key under a
