@@ -18,7 +18,7 @@ var Manifest = dotapi.Manifest{
 		{Cmd: "pnpm exec biome check --write ."},
 	},
 	TestCommands: []dotapi.Command{
-		{Cmd: "pnpm exec biome check ."},
+		{Cmd: "pnpm exec biome check --write ."},
 	},
 	Validators: []dotapi.Validator{
 		{
