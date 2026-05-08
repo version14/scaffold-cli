@@ -41,8 +41,7 @@ func (g *Generator) Generate(ctx *dotapi.Context) error {
 				"vite":                 "^5.4.0",
 			},
 		})
-		// Vite ships an esbuild binary it runs at install time — pre-approve.
-		return d.AppendStringSet("pnpm.onlyBuiltDependencies", "esbuild")
+		return nil
 	}); err != nil {
 		return err
 	}

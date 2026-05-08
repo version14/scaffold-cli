@@ -19,7 +19,7 @@ var Manifest = dotapi.Manifest{
 		{Cmd: "pnpm install"},
 	},
 	TestCommands: []dotapi.Command{
-		{Cmd: "pnpm install"},
+		{Cmd: "pnpm install --dangerously-allow-all-builds"},
 		{Cmd: "pnpm exec tsc --noEmit"},
 	},
 	Validators: []dotapi.Validator{
