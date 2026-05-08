@@ -45,6 +45,7 @@ func (g *Generator) Generate(ctx *dotapi.Context) error {
 				"@biomejs/biome": "^1.9.0",
 			},
 		})
-		return nil
+		// Biome ships a native binary postinstall — pre-approve it for pnpm 10.
+		return d.AppendStringSet("pnpm.onlyBuiltDependencies", "@biomejs/biome")
 	})
 }

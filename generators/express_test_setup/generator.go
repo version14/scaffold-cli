@@ -36,6 +36,7 @@ func (g *Generator) Generate(ctx *dotapi.Context) error {
 				"@types/supertest":    "^6.0.0",
 			},
 		})
-		return nil
+		// vitest pulls vite which pulls esbuild — pre-approve it for pnpm 10.
+		return d.AppendStringSet("pnpm.onlyBuiltDependencies", "esbuild")
 	})
 }

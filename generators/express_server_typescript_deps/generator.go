@@ -33,6 +33,7 @@ func (g *Generator) Generate(ctx *dotapi.Context) error {
 				"tsx":            "^4.19.0",
 			},
 		})
-		return nil
+		// tsx ships an embedded esbuild binary — pre-approve it for pnpm 10.
+		return d.AppendStringSet("pnpm.onlyBuiltDependencies", "esbuild")
 	})
 }
