@@ -39,8 +39,7 @@ func (g *Generator) Generate(ctx *dotapi.Context) error {
 				"@types/swagger-ui-express": "^4.1.6",
 			},
 		})
-		// swagger-jsdoc bundles @scarf/scarf for install-time analytics.
-		return d.AppendStringSet("pnpm.onlyBuiltDependencies", "@scarf/scarf")
+		return nil
 	}); err != nil {
 		return err
 	}

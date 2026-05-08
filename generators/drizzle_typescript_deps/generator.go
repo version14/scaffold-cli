@@ -28,8 +28,6 @@ func (g *Generator) Generate(ctx *dotapi.Context) error {
 				"drizzle-kit": "^0.30.0",
 			},
 		})
-		// drizzle-kit bundles esbuild; drizzle-orm bundles @scarf/scarf for
-		// install-time analytics. Pre-approve both for pnpm 10.
-		return d.AppendStringSet("pnpm.onlyBuiltDependencies", "esbuild", "@scarf/scarf")
+		return nil
 	})
 }
