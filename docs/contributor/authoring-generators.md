@@ -45,7 +45,10 @@ A minimal generator:
 ```go
 package mygenerator
 
-import "github.com/version14/dot/pkg/dotapi"
+import (
+    "github.com/version14/dot/internal/state"
+    "github.com/version14/dot/pkg/dotapi"
+)
 
 type MyGenerator struct{}
 
@@ -54,7 +57,7 @@ func (g *MyGenerator) Version() string { return "0.1.0" }
 
 func (g *MyGenerator) Generate(ctx *dotapi.Context) error {
     name, _ := ctx.Answers["project_name"].(string)
-    ctx.State.WriteRaw("hello.txt", []byte("Hello, "+name+"!\n"))
+    ctx.State.WriteFile("hello.txt", []byte("Hello, "+name+"!\n"), state.ContentRaw)
     return nil
 }
 ```
@@ -104,161 +107,118 @@ if slices.Contains(ctx.PreviousGens, "typescript_base") {
 
 ### Path conventions
 
-All paths are relative to the project root:
+All paths are relative to the generator's root. For single-app generators this is the project root; for per-app loop generators the executor automatically scopes writes under `apps/<name>/` via `VirtualProjectState.WithPrefix` — generators always write relative paths and never need to know their position in a monorepo:
 
 ```go
-ctx.State.WriteRaw("src/index.ts", content)
-ctx.State.WriteRaw("packages/ui/package.json", content)
+ctx.State.WriteFile("src/index.ts", content, state.ContentRaw)   // → apps/api/src/index.ts in multi-app
+ctx.State.UpdateJSON("package.json", func(d *state.JSONDoc) error { ... }) // → apps/api/package.json
 ```
 
-Do not use absolute paths or `../` segments.
+Do not use absolute paths or `../` segments. Never construct paths with the app name manually — the executor handles scoping.
 
 ---
 
 ## Writing files
 
+### Static files via embedded FS (preferred for multi-file generators)
 
-### From github repository
-
-When creating a generator, you may want to retrieve files from an external GitHub repository. The `VirtualProjectState` provides a `WriteFilesFromGitHub` method to simplify this process. This method allows you to fetch and write files from a specified GitHub repository, enabling you to reuse templates, configurations, or other assets across different projects.
-
-#### Usage
-
-To use `WriteFilesFromGitHub`, you need to provide the repository owner, name, and a list of `FileMapping` objects. Each `FileMapping` specifies the source path in the repository and the destination path in your project.
+Embed a `files/` directory and render it via `render.NewLocalFolderRenderer`. Files ending in `.tmpl` are executed as Go templates; all others are copied as-is.
 
 ```go
-// From a generator
-func (g *MyGenerator) Generate(ctx *dotapi.Context) error {
-    mappings := []state.FileMapping{
-        {Source: "templates/README.md", Destination: "README.md"},
-        {Source: "config/.env.example", Destination: ".env"},
-    }
+import (
+    "embed"
+    "github.com/version14/dot/internal/render"
+    "github.com/version14/dot/pkg/dotapi"
+)
 
-    err := ctx.State.WriteFilesFromGitHub("owner", "repo-name", mappings)
-    if err != nil {
-        return fmt.Errorf("failed to write files from github: %w", err)
-    }
+//go:embed all:files
+var fs embed.FS
 
-    return nil
-}
-```
-This will fetch `templates/README.md` and `config/.env.example` from the `owner/repo-name` repository and write them to `README.md` and `.env` in your project, respectively.
-
-### From external URL
-
-In addition to fetching files from a Git repository, you can also retrieve content from any external URL. The `VirtualProjectState` provides a `WriteFileFromExternal` method that fetches content from a given URL and writes it to a specified file path in your project. This is useful for retrieving configuration files, scripts, or any other assets hosted on the web.
-
-#### Usage
-
-To use `WriteFileFromExternal`, provide the destination file path and the URL of the external content. The method will fetch the content and write it to the specified path.
-
-```go
-// From a generator
-func (g *MyGenerator) Generate(ctx *dotapi.Context) error {
-    err := ctx.State.WriteFileFromExternal("config/config.json", "http://example.com/config.json")
-    if err != nil {
-        return fmt.Errorf("failed to write file from external: %w", err)
-    }
-
-    return nil
-}
-```
-This will fetch the content from `http://example.com/config.json` and write it to `config/config.json` in your project.
-
-
-### From local folder
-
-To scaffold a project from a local template directory, you can use the `local.Renderer`. This is particularly useful for complex generators with many template files, as it keeps the templates separate from the Go code.
-
-The renderer takes a source `fs.FS` (like from `embed.FS`), a source directory within the filesystem, a target directory on disk, and data for template execution.
-
-It walks the source directory and performs one of two actions for each file:
-- If the file name ends in `.tmpl`, it's treated as a Go template and executed with the provided data. The `.tmpl` suffix is removed from the destination file name.
-- Otherwise, the file is copied directly to the destination.
-
-#### Usage
-
-First, embed your template directory in your generator file:
-
-```go
-import "embed"
-
-//go:embed all:templates/my_skeleton
-var mySkeletonFS embed.FS
-
-const skeletonDir = "templates/my_skeleton"
-```
-**Note:** The `all:` prefix is required for `go:embed` to embed a directory.
-
-Then, in your generator's `Generate` method, create and run the renderer:
-
-```go
-import "github.com/version14/dot/pkg/plugins/scaffolder/local"
-
-func (g *MyGenerator) Generate(ctx *dotapi.Context) error {
-    // This can be any struct or map
-    templateData := struct {
-        ProjectName string
-        Author      string
-    }{
-        ProjectName: ctx.Answers["project_name"].(string),
-        Author:      "The DOT team",
-    }
-
-    // Assume TargetDir is the root of the new project
-    renderer := local.NewRenderer(mySkeletonFS, skeletonDir, ctx.State.GetTargetDir(), templateData)
-    if err := renderer.Render(); err != nil {
-        return fmt.Errorf("failed to render local templates: %w", err)
-    }
-
-    return nil
+func (g *Generator) Generate(ctx *dotapi.Context) error {
+    return render.NewLocalFolderRenderer(ctx.State).Render(fs, ctx.Answers)
 }
 ```
 
-This will process all files from the embedded `templates/my_skeleton` directory and write them to the project's target directory.
+See `generators/express_openapi_setup` for the canonical example. The `all:` prefix on `//go:embed` is required to include hidden files and directories.
 
 ### Raw content
 
 ```go
-ctx.State.WriteRaw("README.md", []byte("# My Project\n"))
+ctx.State.WriteFile("README.md", []byte("# My Project\n"), state.ContentRaw)
 ```
 
-Use for Markdown, plain text, shell scripts, or any file format without a structured helper.
+Use for Markdown, plain text, shell scripts, or any file format without a structured helper. `WriteFile` overwrites; `CreateFile` returns an error if the path already exists.
 
-### JSON
+### JSON (cooperative merging)
+
+Multiple generators can contribute to the same JSON file — each call merges its keys:
 
 ```go
-doc := ctx.State.OpenJSON("package.json")
-doc.Set("name", projectName)
-doc.Set("version", "0.1.0")
-doc.Set("private", true)
-doc.SetPath([]string{"scripts", "dev"}, "vite")
+if err := ctx.State.UpdateJSON("package.json", func(d *state.JSONDoc) error {
+    d.Merge(map[string]interface{}{
+        "name":    projectName,
+        "version": "0.1.0",
+        "private": true,
+        "scripts": map[string]interface{}{
+            "build": "tsc",
+        },
+        "devDependencies": map[string]interface{}{
+            "typescript": "^5.4.0",
+        },
+    })
+    return nil
+}); err != nil {
+    return err
+}
 ```
 
-`OpenJSON` returns an existing `*JSONDoc` if the file already exists, or creates a new one. This allows multiple generators to contribute to the same `package.json`.
-
-`doc.Set(key, value)` sets a top-level key. `doc.SetPath(keys, value)` sets a nested key. Both overwrite.
+`UpdateJSON` loads the file if it exists, calls the callback with a `*JSONDoc`, then serializes and writes back. `d.Merge` does a shallow merge; use `d.Set(key, value)` or `d.SetNested([]string{"scripts","dev"}, value)` for targeted writes.
 
 ### YAML
 
 ```go
-doc := ctx.State.OpenYAML("docker-compose.yml")
-doc.Set("version", "3.9")
-doc.SetPath([]string{"services", serviceName, "image"}, image)
+if err := ctx.State.UpdateYAML("docker-compose.yml", func(d *state.YAMLDoc) error {
+    d.Set("version", "3.9")
+    d.SetNested([]string{"services", serviceName, "image"}, image)
+    return nil
+}); err != nil {
+    return err
+}
 ```
 
-Same cooperative pattern as JSON.
+Same cooperative pattern as JSON — safe to call from multiple generators targeting the same file.
 
 ### go.mod
 
 ```go
-gomod := ctx.State.OpenGoMod("go.mod")
-gomod.SetModule(modulePath)
-gomod.SetGoVersion("1.26")
-gomod.AddRequire("github.com/charmbracelet/huh", "v1.0.0")
+if err := ctx.State.UpdateGoMod(func(m *state.GoMod) error {
+    m.SetModule("github.com/myorg/myapp")
+    m.SetGoVersion("1.22")
+    m.AddRequire("github.com/charmbracelet/huh", "v1.0.0")
+    return nil
+}); err != nil {
+    return err
+}
 ```
 
-`OpenGoMod` parses an existing `go.mod` if present. Safe to call from multiple generators; the last write for a given key wins.
+### Fetching from a GitHub archive (base_project pattern)
+
+When a generator needs to seed files from a remote GitHub repository (e.g. a template repo), use `render.PopulateStateFromSnapshot`:
+
+```go
+import "github.com/version14/dot/internal/render"
+
+func (g *Generator) Generate(ctx *dotapi.Context) error {
+    fetcher := render.NewGitHubArchiveFetcher()
+    snapshot, err := fetcher.FetchRepo(ctx, "https://github.com/owner/repo.git", render.FetchOptions{})
+    if err != nil {
+        return err
+    }
+    return render.PopulateStateFromSnapshot(ctx.State, snapshot)
+}
+```
+
+See `generators/base_project/generator.go` for the canonical example. This is only needed for template repos — prefer embedded `files/` for everything else.
 
 ---
 
@@ -466,23 +426,25 @@ The generator immediately appears in `dot generators`.
 
 A generator that participates in a loop receives each iteration's answers via scoped `ctx.Answers`. The `LoopStack` in the invocation tells the executor which frame to overlay.
 
-Write the generator as if it always receives a single set of answers:
+**Write the generator as if it always receives a single set of answers and always writes to the project root.** Do not compute subdirectory paths using loop-frame values — the executor does that automatically.
+
+When a generator invocation has a non-empty `LoopStack`, the executor calls `VirtualProjectState.WithPrefix("apps/<name>")` and passes the prefixed state as `ctx.State`. Every relative path the generator writes (`src/index.ts`, `package.json`, …) is automatically rooted under `apps/<name>/` without the generator knowing its position in the monorepo.
 
 ```go
-func (g *ServiceWriter) Generate(ctx *dotapi.Context) error {
-    name, _ := ctx.Answers["service_name"].(string)
-    port, _ := ctx.Answers["service_port"].(string)
-
-    // Write to a directory named after the service:
-    ctx.State.WriteRaw(
-        filepath.Join("services", name, "main.go"),
-        renderMain(name, port),
-    )
-    return nil
+func (g *AppGenerator) Generate(ctx *dotapi.Context) error {
+    // Works identically for single-app and loop (multi-app) invocations.
+    // ctx.State is already scoped to apps/<app-name>/ when inside a loop.
+    return render.NewLocalFolderRenderer(ctx.State).Render(fs, ctx.Answers)
 }
 ```
 
-Each loop iteration is a separate `generator.Invocation` — the same generator function is called multiple times, once per iteration, each time with different `ctx.Answers`. Files from different iterations go into different paths (controlled by the generator itself, typically using the service name as a subdirectory).
+To read the loop-frame key that identifies the app (e.g. `app-name`), access it from `ctx.Answers` — the executor merges global and loop-frame answers before passing the context:
+
+```go
+appName, _ := ctx.Answers["app-name"].(string)
+```
+
+Each loop iteration is a separate `generator.Invocation`. The same generator function is called once per iteration, each time with different `ctx.Answers` and a different prefixed `ctx.State`.
 
 ---
 
@@ -493,6 +455,38 @@ Each loop iteration is a separate `generator.Invocation` — the same generator 
 | `base_project` | `generators/base_project` | README, .gitignore, LICENSE — always runs first |
 | `typescript_base` | `generators/typescript_base` | tsconfig.json, package.json, tooling |
 | `react_app` | `generators/react_app` | Vite, React Router, Tailwind; depends on `typescript_base` |
-| `biome_config` | `generators/biome_config` | biome.json formatter/linter config |
-| `service_writer` | `generators/service_writer` | Go microservice (HTTP server, Dockerfile, healthcheck) |
+| `biome_config` | `generators/biome_config` | biome.json formatter/linter config; `DependsOn: ["*"]` — runs last |
+| `monorepo_ts_workspaces` | `generators/monorepo_ts_workspaces` | Root package.json with workspaces + pnpm-workspace.yaml for TS monorepos |
 | `plugin_repo_skeleton` | `generators/plugin_repo_skeleton` | Full DOT plugin repository scaffold |
+| `backend_architecture_clean_architecture` | `generators/backend_architecture_clean_architecture` | Clean Architecture folder structure for Express |
+| `backend_architecture_mvc_architecture` | `generators/backend_architecture_mvc_architecture` | MVC folder structure for Express |
+| `backend_architecture_hexagonal_architecture` | `generators/backend_architecture_hexagonal_architecture` | Hexagonal Architecture folder structure for Express |
+| `express_server_entrypoint` | `generators/express_server_entrypoint` | Express app entrypoint (src/app.ts, src/server.ts) |
+| `express_server_typescript_deps` | `generators/express_server_typescript_deps` | Express + TS npm dependencies in package.json |
+| `express_node_tsconfig` | `generators/express_node_tsconfig` | tsconfig.json tuned for Node/Express |
+| `express_shared_errors` | `generators/express_shared_errors` | Shared error classes |
+| `express_error_middleware` | `generators/express_error_middleware` | Global error-handling middleware |
+| `express_rate_limit` | `generators/express_rate_limit` | express-rate-limit middleware |
+| `express_test_setup` | `generators/express_test_setup` | Vitest + supertest setup |
+| `express_auth_validators` | `generators/express_auth_validators` | Auth input validators |
+| `express_swagger_jsdoc` | `generators/express_swagger_jsdoc` | Swagger JSDoc annotation setup |
+| `zod_validation_deps` | `generators/zod_validation_deps` | Zod + reflect-metadata npm deps |
+| `express_decorators_core` | `generators/express_decorators_core` | routing-controllers + class-transformer bootstrap |
+| `express_openapi_setup` | `generators/express_openapi_setup` | routing-controllers-openapi + swagger-ui-express |
+| `decorators_clean_arch_adapter` | `generators/decorators_clean_arch_adapter` | Decorator-compatible Clean Architecture adapter |
+| `decorators_mvc_adapter` | `generators/decorators_mvc_adapter` | Decorator-compatible MVC adapter |
+| `decorators_hexagonal_adapter` | `generators/decorators_hexagonal_adapter` | Decorator-compatible Hexagonal adapter |
+| `prettier_config` | `generators/prettier_config` | .prettierrc; `DependsOn: ["*"]` — runs last |
+| `prettier_typescript_deps` | `generators/prettier_typescript_deps` | Prettier npm deps |
+| `prettier_express_rules` | `generators/prettier_express_rules` | Express-specific Prettier rules |
+| `postgres_docker_compose` | `generators/postgres_docker_compose` | docker-compose.yml with Postgres service |
+| `postgres_env_example` | `generators/postgres_env_example` | .env.example with DATABASE_URL |
+| `drizzle_config_base` | `generators/drizzle_config_base` | drizzle.config.ts |
+| `drizzle_typescript_deps` | `generators/drizzle_typescript_deps` | Drizzle ORM npm deps |
+| `drizzle_postgres_adapter` | `generators/drizzle_postgres_adapter` | Drizzle schema + postgres adapter; runs `drizzle-kit generate` |
+| `auth_better_auth` | `generators/auth_better_auth` | better-auth setup wired into Express |
+| `auth_jwt_vanilla` | `generators/auth_jwt_vanilla` | Vanilla JWT auth (no framework) |
+| `auth_better_auth_schema` | `generators/auth_better_auth_schema` | Drizzle schema for better-auth |
+| `auth_jwt_users_schema` | `generators/auth_jwt_users_schema` | Drizzle users schema for JWT auth |
+| `auth_jwt_mvc_route` | `generators/auth_jwt_mvc_route` | JWT auth route for MVC architecture |
+| `auth_jwt_clean_arch_module` | `generators/auth_jwt_clean_arch_module` | JWT auth module for Clean Architecture |
