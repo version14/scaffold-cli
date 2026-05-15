@@ -46,15 +46,23 @@ func (e *Executor) Execute(invocations []Invocation, s *spec.ProjectSpec, vstate
 
 		scoped := flow.FlattenScope(s.Answers, inv.LoopStack)
 
+		// Scope file writes to apps/<name>/ when running inside an app loop.
+		stateForInv := vstate
+		if len(inv.LoopStack) > 0 {
+			if appName, ok := scoped["app-name"].(string); ok && appName != "" {
+				stateForInv = vstate.WithPrefix("apps/" + appName)
+			}
+		}
+
 		ctx := &dotapi.Context{
 			Spec:         s,
 			Answers:      scoped,
-			State:        vstate,
+			State:        stateForInv,
 			PreviousGens: append([]string(nil), previous...),
 			Logger:       e.Logger,
 		}
 
-		vstate.SetCurrentGenerator(inv.Name)
+		stateForInv.SetCurrentGenerator(inv.Name)
 		if err := entry.Generator.Generate(ctx); err != nil {
 			return &ErrGeneratorFailed{Name: inv.Name, Err: err}
 		}

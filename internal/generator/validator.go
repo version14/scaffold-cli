@@ -29,9 +29,13 @@ func RunValidators(root string, manifests []dotapi.Manifest) ([]ValidationFailur
 	var failures []ValidationFailure
 
 	for _, m := range manifests {
+		checkRoot := root
+		if m.PathPrefix != "" {
+			checkRoot = filepath.Join(root, filepath.FromSlash(m.PathPrefix))
+		}
 		for _, v := range m.Validators {
 			for _, c := range v.Checks {
-				ok, reason, err := runCheck(root, c)
+				ok, reason, err := runCheck(checkRoot, c)
 				if err != nil {
 					return failures, fmt.Errorf("validator %s/%s: %w", m.Name, v.Name, err)
 				}

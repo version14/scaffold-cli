@@ -122,6 +122,66 @@ func (r *HuhFormRunner) Run(root flow.Question) (*flow.FlowContext, error) {
 		ctx.Answers[lq.ID()] = iterations
 	}
 
+	// ── Step 7: Post-loop Continue sub-forms ──────────────────────────────────
+	// The main form walker deliberately skips LoopQuestion.Continue so that
+	// post-loop questions (e.g. confirmGenerate) appear AFTER the body
+	// sub-forms, not before. We run them here as a separate form now that all
+	// iterations are complete.
+	for _, barrier := range walker.loops {
+		slot := walker.slots[barrier.slotIdx]
+		if buildHideFunc(slot.conditions, store)() {
+			continue // loop was hidden; its Continue is irrelevant
+		}
+
+		lq := barrier.question
+		if lq.Continue == nil || lq.Continue.End || lq.Continue.Question == nil {
+			continue
+		}
+
+		continueStore := newLiveStore()
+		contWalker := newFormWalker(r.Hooks, r.Fragments)
+		contWalker.walk(lq.Continue.Question)
+
+		contGroups, err := r.buildGroups(contWalker.slots, continueStore)
+		if err != nil {
+			return nil, fmt.Errorf("cli: post-loop continue %q: %w", lq.ID(), err)
+		}
+
+		if len(contGroups) > 0 {
+			form := huh.NewForm(contGroups...)
+			if runErr := form.Run(); runErr != nil {
+				if errors.Is(runErr, huh.ErrUserAborted) {
+					return nil, ErrAborted
+				}
+				return nil, fmt.Errorf("cli: post-loop continue %q: %w", lq.ID(), runErr)
+			}
+		}
+
+		for _, cSlot := range contWalker.slots {
+			if buildHideFunc(cSlot.conditions, continueStore)() {
+				continue
+			}
+			id := cSlot.question.ID()
+			ctx.VisitedNodes = append(ctx.VisitedNodes, id)
+			switch q := cSlot.question.(type) {
+			case *flow.TextQuestion:
+				val := continueStore.getString(id)
+				if val == "" {
+					val = q.Default
+				}
+				ctx.Answers[id] = val
+			case *flow.OptionQuestion:
+				if q.Multiple {
+					ctx.Answers[id] = continueStore.getStrSlice(id)
+				} else {
+					ctx.Answers[id] = continueStore.getString(id)
+				}
+			case *flow.ConfirmQuestion:
+				ctx.Answers[id] = continueStore.getBool(id)
+			}
+		}
+	}
+
 	return ctx, nil
 }
 
@@ -207,8 +267,8 @@ func (r *HuhFormRunner) buildField(q flow.Question, store *liveStore) (huh.Field
 }
 
 // runLoopSubForms executes `count` sub-forms for the body of a LoopQuestion.
-// Each iteration runs as its own single Huh form (back navigation within an
-// iteration is supported; cross-iteration back is not).
+// Each iteration pre-walks the body sub-graph (same approach as the main form
+// walker) so conditional questions within the body get proper hide functions.
 func (r *HuhFormRunner) runLoopSubForms(
 	lq *flow.LoopQuestion,
 	count int,
@@ -220,7 +280,13 @@ func (r *HuhFormRunner) runLoopSubForms(
 		PrintProgress(i+1, count, lq.Label)
 
 		bodyStore := newLiveStore()
-		bodyGroups, err := r.buildBodyGroups(lq.Body, bodyStore)
+
+		subWalker := newFormWalker(r.Hooks, r.Fragments)
+		for _, q := range lq.Body {
+			subWalker.walk(q)
+		}
+
+		bodyGroups, err := r.buildGroups(subWalker.slots, bodyStore)
 		if err != nil {
 			return nil, fmt.Errorf("cli: loop %q iteration %d: %w", lq.ID(), i+1, err)
 		}
@@ -235,18 +301,21 @@ func (r *HuhFormRunner) runLoopSubForms(
 			}
 		}
 
-		iter := make(map[string]flow.Answer, len(lq.Body))
-		for _, bodyQ := range lq.Body {
-			id := bodyQ.ID()
-			switch bq := bodyQ.(type) {
+		iter := make(map[string]flow.Answer, len(subWalker.slots))
+		for _, slot := range subWalker.slots {
+			if buildHideFunc(slot.conditions, bodyStore)() {
+				continue
+			}
+			id := slot.question.ID()
+			switch q := slot.question.(type) {
 			case *flow.TextQuestion:
 				val := bodyStore.getString(id)
 				if val == "" {
-					val = bq.Default
+					val = q.Default
 				}
 				iter[id] = val
 			case *flow.OptionQuestion:
-				if bq.Multiple {
+				if q.Multiple {
 					iter[id] = bodyStore.getStrSlice(id)
 				} else {
 					iter[id] = bodyStore.getString(id)
@@ -259,24 +328,6 @@ func (r *HuhFormRunner) runLoopSubForms(
 	}
 
 	return results, nil
-}
-
-// buildBodyGroups builds a linear Huh group list for loop body questions.
-// Body questions are always shown (no hide conditions); the loop controls
-// iteration count, not question visibility within a body.
-func (r *HuhFormRunner) buildBodyGroups(body []flow.Question, store *liveStore) ([]*huh.Group, error) {
-	groups := make([]*huh.Group, 0, len(body))
-	for _, q := range body {
-		field, err := r.buildField(q, store)
-		if err != nil {
-			return nil, err
-		}
-		if field == nil {
-			continue
-		}
-		groups = append(groups, huh.NewGroup(field))
-	}
-	return groups, nil
 }
 
 // toHuhOptions converts flow.Option slice to huh.Option[string] slice.

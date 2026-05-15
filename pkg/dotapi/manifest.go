@@ -39,6 +39,12 @@ type Manifest struct {
 	// Validators are structural checks run against the virtual state after
 	// generation, and against the on-disk project on re-runs.
 	Validators []Validator
+
+	// PathPrefix is a runtime-only field set by the executor/runner when the
+	// generator runs inside a loop (e.g. "apps/api"). Validator checks and
+	// command WorkDirs are resolved relative to PathPrefix inside the project
+	// root. Generators never set this themselves.
+	PathPrefix string
 }
 
 // Command is a shell command run after generation. WorkDir is relative to the

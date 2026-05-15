@@ -36,9 +36,16 @@ func Plan(invocations []Invocation) []PlannedCommand {
 	all := make([]PlannedCommand, 0)
 	for _, inv := range invocations {
 		for _, cmd := range inv.Manifest.PostGenerationCommands {
+			workDir := interpolate(cmd.WorkDir, inv.Answers)
+			// When the manifest carries a PathPrefix (e.g. "apps/api" for a
+			// per-app loop invocation) and the command has no explicit WorkDir,
+			// run the command inside that app's directory.
+			if workDir == "" && inv.Manifest.PathPrefix != "" {
+				workDir = inv.Manifest.PathPrefix
+			}
 			all = append(all, PlannedCommand{
 				Cmd:        interpolate(cmd.Cmd, inv.Answers),
-				WorkDir:    interpolate(cmd.WorkDir, inv.Answers),
+				WorkDir:    workDir,
 				Source:     inv.Manifest.Name,
 				Background: cmd.Background,
 				ReadyDelay: cmd.ReadyDelay,

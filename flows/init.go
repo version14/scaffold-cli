@@ -28,12 +28,58 @@ func InitFlow() *FlowDef {
 		Else:         &flow.Next{End: true},
 	}
 
+	stack := buildTSBackendChain(&flow.Next{Question: confirmGenerate})
+
+	appsCount := &flow.LoopQuestion{
+		QuestionBase: flow.QuestionBase{
+			ID_: "apps_count",
+		},
+		Label:    "Number of apps",
+		Body:     buildPerAppBody(),
+		Continue: &flow.Next{Question: confirmGenerate},
+	}
+
+	monorepoType := &flow.OptionQuestion{
+		QuestionBase: flow.QuestionBase{ID_: "monorepo_type"},
+		Label:        "Monorepo style",
+		Options: []*flow.Option{
+			{Label: "Single app (no monorepo)", Value: "single", Next: &flow.Next{Question: stack}},
+			{Label: "Multi  apps (monorepo)", Value: "multi", Next: &flow.Next{Question: appsCount}},
+			// {Label: "Turborepo", Value: "turborepo", Next: &flow.Next{Question: stack}},
+		},
+	}
+
+	projectName := &flow.TextQuestion{
+		QuestionBase: flow.QuestionBase{
+			ID_:   "project_name",
+			Next_: &flow.Next{Question: monorepoType},
+		},
+		Label:       "Project name",
+		Description: "Used as the package name and root directory.",
+		Default:     "my-project",
+		Validate:    nonEmpty,
+	}
+
+	return &FlowDef{
+		ID:          "init",
+		Title:       "Init / Project Wizard",
+		Description: "Scaffold a new project with optional monorepo, language, and tooling.",
+		Root:        projectName,
+		Generators:  resolveMonorepoGenerators,
+	}
+}
+
+// buildTSBackendChain builds the reusable question sub-graph from `stack` down
+// to terminal. Used by both the single-app flow (terminal → confirmGenerate)
+// and the per-app loop body (terminal → End:true) so question definitions
+// are never duplicated.
+func buildTSBackendChain(terminal *flow.Next) flow.Question {
 	authMethod := &flow.OptionQuestion{
 		QuestionBase: flow.QuestionBase{ID_: "ts-backend-auth-method"},
 		Label:        "Choose an auth method.",
 		Options: []*flow.Option{
-			{Label: "BetterAuth (sessions + Drizzle adapter)", Value: "better-auth", Next: &flow.Next{Question: confirmGenerate}},
-			{Label: "Vanilla JWT", Value: "jwt", Next: &flow.Next{Question: confirmGenerate}},
+			{Label: "BetterAuth (sessions + Drizzle adapter)", Value: "better-auth", Next: terminal},
+			{Label: "Vanilla JWT", Value: "jwt", Next: terminal},
 		},
 	}
 
@@ -42,7 +88,7 @@ func InitFlow() *FlowDef {
 		Label:        "Enable authentication?",
 		Default:      false,
 		Then:         &flow.Next{Question: authMethod},
-		Else:         &flow.Next{Question: confirmGenerate},
+		Else:         terminal,
 	}
 
 	orm := &flow.OptionQuestion{
@@ -63,10 +109,10 @@ func InitFlow() *FlowDef {
 
 	enableDb := &flow.ConfirmQuestion{
 		QuestionBase: flow.QuestionBase{ID_: "enable-db"},
-		Label:        "Link a database to this project?",
+		Label:        "Link a database?",
 		Default:      false,
 		Then:         &flow.Next{Question: dbType},
-		Else:         &flow.Next{Question: confirmGenerate},
+		Else:         &flow.Next{Question: enableAuth},
 	}
 
 	linter := &flow.OptionQuestion{
@@ -128,43 +174,34 @@ func InitFlow() *FlowDef {
 		},
 	}
 
-	stack := &flow.OptionQuestion{
+	return &flow.OptionQuestion{
 		QuestionBase: flow.QuestionBase{ID_: "stack"},
 		Label:        "Primary language stack",
 		Description:  "DOT will scaffold the matching toolchain.",
 		Options: []*flow.Option{
 			{Label: "TypeScript", Value: "typescript", Next: &flow.Next{Question: framework}},
-			// {Label: "Go", Value: "go", Next: &flow.Next{Question: confirmGenerate}},
+			// {Label: "Go", Value: "go", Next: terminal},
 		},
 	}
+}
 
-	monorepoType := &flow.OptionQuestion{
-		QuestionBase: flow.QuestionBase{ID_: "monorepo_type"},
-		Label:        "Monorepo style",
-		Options: []*flow.Option{
-			{Label: "Single app (no monorepo)", Value: "single", Next: &flow.Next{Question: stack}},
-			// {Label: "Turborepo", Value: "turborepo", Next: &flow.Next{Question: stack}},
-		},
-	}
+// buildPerAppBody returns a fresh question sub-graph for one loop iteration.
+// It reuses buildTSBackendChain with End:true as the terminal so each body
+// question terminates the iteration instead of routing into confirmGenerate.
+func buildPerAppBody() []flow.Question {
+	chain := buildTSBackendChain(&flow.Next{End: true})
 
-	projectName := &flow.TextQuestion{
+	appName := &flow.TextQuestion{
 		QuestionBase: flow.QuestionBase{
-			ID_:   "project_name",
-			Next_: &flow.Next{Question: monorepoType},
+			ID_:   "app-name",
+			Next_: &flow.Next{Question: chain},
 		},
-		Label:       "Project name",
-		Description: "Used as the package name and root directory.",
-		Default:     "my-project",
+		Label:       "App name",
+		Description: "Used as the app's directory name (apps/<name>/).",
 		Validate:    nonEmpty,
 	}
 
-	return &FlowDef{
-		ID:          "init",
-		Title:       "Init / Project Wizard",
-		Description: "Scaffold a new project with optional monorepo, language, and tooling.",
-		Root:        projectName,
-		Generators:  resolveMonorepoGenerators,
-	}
+	return []flow.Question{appName}
 }
 
 // resolveMonorepoGenerators maps the populated spec to the ordered generator
@@ -174,122 +211,168 @@ func resolveMonorepoGenerators(s *spec.ProjectSpec) []Invocation {
 		return nil
 	}
 
-	out := []Invocation{
-		{Name: "base_project"},
+	out := []Invocation{{Name: "base_project"}}
+
+	if monorepoType, _ := s.Answers["monorepo_type"].(string); monorepoType == "multi" {
+		out = append(out, Invocation{Name: "monorepo_ts_workspaces"})
+		for i, appAnswers := range extractAppAnswers(s.Answers["apps_count"]) {
+			frame := flow.LoopFrame{
+				QuestionID: "apps_count",
+				Index:      i,
+				Answers:    appAnswers,
+			}
+			out = append(out, resolveAppGenerators(appAnswers, []flow.LoopFrame{frame})...)
+		}
+		return out
 	}
 
-	stack, _ := s.Answers["stack"].(string)
-	framework, _ := s.Answers["ts-backend-framework"].(string)
-	architecture, _ := s.Answers["ts-backend-architecture"].(string)
-	formatter, _ := s.Answers["ts-backend-formatter"].(string)
-	dbEnabled, _ := s.Answers["enable-db"].(bool)
-	dbType, _ := s.Answers["ts-backend-db-type"].(string)
-	orm, _ := s.Answers["ts-backend-orm"].(string)
-	authEnabled, _ := s.Answers["enable-auth"].(bool)
-	authMethod, _ := s.Answers["ts-backend-auth-method"].(string)
-	decoratorsEnabled, _ := s.Answers["ts-backend-decorators-validation"].(bool)
+	// Single-app: read directly from top-level answers.
+	flat := make(map[string]interface{}, len(s.Answers))
+	for k, v := range s.Answers {
+		flat[k] = v
+	}
+	out = append(out, resolveAppGenerators(flat, nil)...)
+	return out
+}
+
+// extractAppAnswers normalises the apps_count answer into a typed slice.
+// The engine stores []map[string]interface{}; JSON round-trip produces []interface{}.
+func extractAppAnswers(raw interface{}) []map[string]interface{} {
+	switch v := raw.(type) {
+	case []map[string]interface{}:
+		return v
+	case []interface{}:
+		out := make([]map[string]interface{}, 0, len(v))
+		for _, item := range v {
+			if m, ok := item.(map[string]interface{}); ok {
+				out = append(out, m)
+			}
+		}
+		return out
+	}
+	return nil
+}
+
+// resolveAppGenerators maps one app's answers to an ordered generator list.
+// loopStack is nil for single-app; for multi-app it carries the iteration frame
+// so the executor can scope writes to apps/<name>/.
+func resolveAppGenerators(answers map[string]interface{}, loopStack []flow.LoopFrame) []Invocation {
+	inv := func(name string) Invocation { return Invocation{Name: name, LoopStack: loopStack} }
+
+	stack, _ := answers["stack"].(string)
+	framework, _ := answers["ts-backend-framework"].(string)
+	architecture, _ := answers["ts-backend-architecture"].(string)
+	formatter, _ := answers["ts-backend-formatter"].(string)
+	dbEnabled, _ := answers["enable-db"].(bool)
+	dbType, _ := answers["ts-backend-db-type"].(string)
+	orm, _ := answers["ts-backend-orm"].(string)
+	authEnabled, _ := answers["enable-auth"].(bool)
+	authMethod, _ := answers["ts-backend-auth-method"].(string)
+	decoratorsEnabled, _ := answers["ts-backend-decorators-validation"].(bool)
+
+	var out []Invocation
 
 	if stack == "typescript" {
-		out = append(out, Invocation{Name: "typescript_base"})
+		out = append(out, inv("typescript_base"))
 	}
 
 	if framework == "express" {
 		out = append(out,
-			Invocation{Name: "express_server_entrypoint"},
-			Invocation{Name: "express_server_typescript_deps"},
-			Invocation{Name: "express_node_tsconfig"},
-			Invocation{Name: "express_shared_errors"},
-			Invocation{Name: "express_error_middleware"},
-			Invocation{Name: "express_rate_limit"},
-			Invocation{Name: "express_test_setup"},
+			inv("express_server_entrypoint"),
+			inv("express_server_typescript_deps"),
+			inv("express_node_tsconfig"),
+			inv("express_shared_errors"),
+			inv("express_error_middleware"),
+			inv("express_rate_limit"),
+			inv("express_test_setup"),
 		)
 	}
 
 	switch architecture {
 	case CLEAN_ARCHITECTURE:
-		out = append(out, Invocation{Name: "backend_architecture_clean_architecture"})
+		out = append(out, inv("backend_architecture_clean_architecture"))
 	case MVC_ARCHITECTURE:
-		out = append(out, Invocation{Name: "backend_architecture_mvc"})
+		out = append(out, inv("backend_architecture_mvc"))
 	case HEXAGONAL_ARCHITECTURE:
-		out = append(out, Invocation{Name: "backend_architecture_hexagonal_architecture"})
+		out = append(out, inv("backend_architecture_hexagonal_architecture"))
 	}
 
 	if framework == "express" {
 		if decoratorsEnabled {
 			out = append(out,
-				Invocation{Name: "zod_validation_deps"},
-				Invocation{Name: "express_decorators_core"},
-				Invocation{Name: "express_openapi_setup"},
+				inv("zod_validation_deps"),
+				inv("express_decorators_core"),
+				inv("express_openapi_setup"),
 			)
 			switch architecture {
 			case CLEAN_ARCHITECTURE:
-				out = append(out, Invocation{Name: "decorators_clean_arch_adapter"})
+				out = append(out, inv("decorators_clean_arch_adapter"))
 			case MVC_ARCHITECTURE:
-				out = append(out, Invocation{Name: "decorators_mvc_adapter"})
+				out = append(out, inv("decorators_mvc_adapter"))
 			case HEXAGONAL_ARCHITECTURE:
-				out = append(out, Invocation{Name: "decorators_hexagonal_adapter"})
+				out = append(out, inv("decorators_hexagonal_adapter"))
 			}
 		} else {
 			// Always wire the JSDoc-based Swagger so /docs works regardless of
 			// the decorator choice — generated controllers ship with @openapi
 			// comments that swagger-jsdoc picks up at boot.
-			out = append(out, Invocation{Name: "express_swagger_jsdoc"})
+			out = append(out, inv("express_swagger_jsdoc"))
 		}
 	}
 
 	if formatter == "prettier" {
 		out = append(out,
-			Invocation{Name: "prettier_config"},
-			Invocation{Name: "prettier_typescript_deps"},
-			Invocation{Name: "prettier_express_rules"},
+			inv("prettier_config"),
+			inv("prettier_typescript_deps"),
+			inv("prettier_express_rules"),
 		)
 	} else if formatter == "biome" {
-		out = append(out, Invocation{Name: "biome_config"})
+		out = append(out, inv("biome_config"))
 	}
 
 	if dbEnabled {
 		if dbType == "postgres" {
 			out = append(out,
-				Invocation{Name: "postgres_docker_compose"},
-				Invocation{Name: "postgres_env_example"},
+				inv("postgres_docker_compose"),
+				inv("postgres_env_example"),
 			)
 		}
 		if orm == "drizzle" {
 			out = append(out,
-				Invocation{Name: "drizzle_config_base"},
-				Invocation{Name: "drizzle_typescript_deps"},
-				Invocation{Name: "drizzle_postgres_adapter"},
+				inv("drizzle_config_base"),
+				inv("drizzle_typescript_deps"),
+				inv("drizzle_postgres_adapter"),
 			)
 		}
 	}
 
 	if authEnabled {
-		out = append(out, Invocation{Name: "express_auth_validators"})
+		out = append(out, inv("express_auth_validators"))
 		switch authMethod {
 		case "better-auth":
-			// BetterAuth needs Drizzle + Postgres; add them if not already included
+			// BetterAuth needs Drizzle + Postgres; add them if not already included.
 			if !dbEnabled {
 				out = append(out,
-					Invocation{Name: "postgres_docker_compose"},
-					Invocation{Name: "postgres_env_example"},
-					Invocation{Name: "drizzle_config_base"},
-					Invocation{Name: "drizzle_typescript_deps"},
-					Invocation{Name: "drizzle_postgres_adapter"},
+					inv("postgres_docker_compose"),
+					inv("postgres_env_example"),
+					inv("drizzle_config_base"),
+					inv("drizzle_typescript_deps"),
+					inv("drizzle_postgres_adapter"),
 				)
 			}
-			out = append(out, Invocation{Name: "auth_better_auth"})
-			out = append(out, Invocation{Name: "auth_better_auth_schema"})
+			out = append(out, inv("auth_better_auth"))
+			out = append(out, inv("auth_better_auth_schema"))
 		case "jwt":
-			out = append(out, Invocation{Name: "auth_jwt_vanilla"})
+			out = append(out, inv("auth_jwt_vanilla"))
 			if dbEnabled && orm == "drizzle" {
-				out = append(out, Invocation{Name: "auth_jwt_users_schema"})
+				out = append(out, inv("auth_jwt_users_schema"))
 			}
 			switch architecture {
 			case MVC_ARCHITECTURE:
-				out = append(out, Invocation{Name: "auth_jwt_mvc_route"})
+				out = append(out, inv("auth_jwt_mvc_route"))
 			case CLEAN_ARCHITECTURE:
 				if dbEnabled && orm == "drizzle" {
-					out = append(out, Invocation{Name: "auth_jwt_clean_arch_module"})
+					out = append(out, inv("auth_jwt_clean_arch_module"))
 				}
 			}
 		}

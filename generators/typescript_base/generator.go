@@ -15,7 +15,11 @@ func (g *Generator) Name() string    { return Manifest.Name }
 func (g *Generator) Version() string { return Manifest.Version }
 
 func (g *Generator) Generate(ctx *dotapi.Context) error {
-	projectName := stringAnswer(ctx.Answers, "project_name", ctx.Spec.Metadata.ProjectName)
+	// In multi-app context app-name scopes the package; fall back to project_name for single-app.
+	projectName := stringAnswer(ctx.Answers, "app-name", "")
+	if projectName == "" {
+		projectName = stringAnswer(ctx.Answers, "project_name", ctx.Spec.Metadata.ProjectName)
+	}
 	if projectName == "" {
 		projectName = "app"
 	}
