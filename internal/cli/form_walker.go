@@ -352,8 +352,10 @@ func (w *formWalker) walkQ(q flow.Question, cond pathCond) {
 		if !alreadyVisited {
 			w.loops = append(w.loops, &loopBarrier{slotIdx: idx, question: typed})
 		}
-		// Walk what comes after the loop with the same condition.
-		w.walkNext(typed.Continue, cond)
+		// Continue is deferred: HuhFormRunner runs it as a post-loop sub-form
+		// after all iterations complete. Walking it here would insert the
+		// Continue questions (e.g. confirmGenerate) into the main form BEFORE
+		// the body sub-forms execute, reversing the intended order.
 		// Do NOT walk typed.Body — those run as sub-forms.
 	}
 }

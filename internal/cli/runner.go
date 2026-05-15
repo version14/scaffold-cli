@@ -136,6 +136,12 @@ func Scaffold(ctx context.Context, opts ScaffoldOptions) (*ScaffoldResult, error
 			return nil, fmt.Errorf("cli: unknown generator %q after resolve", inv.Name)
 		}
 		mans[i] = entry.Manifest
+		if len(inv.LoopStack) > 0 {
+			scoped := flow.FlattenScope(s.Answers, inv.LoopStack)
+			if appName, ok2 := scoped["app-name"].(string); ok2 && appName != "" {
+				mans[i].PathPrefix = "apps/" + appName
+			}
+		}
 	}
 
 	vstate := state.NewVirtualProjectState(s.Metadata)
@@ -189,9 +195,13 @@ func PlanTestCommands(s *spec.ProjectSpec, manifests []dotapi.Manifest) []comman
 	all := make([]commands.PlannedCommand, 0)
 	for _, m := range manifests {
 		for _, c := range m.TestCommands {
+			workDir := interpolateAnswers(c.WorkDir, s.Answers)
+			if workDir == "" && m.PathPrefix != "" {
+				workDir = m.PathPrefix
+			}
 			all = append(all, commands.PlannedCommand{
 				Cmd:        interpolateAnswers(c.Cmd, s.Answers),
-				WorkDir:    interpolateAnswers(c.WorkDir, s.Answers),
+				WorkDir:    workDir,
 				Source:     m.Name,
 				Background: c.Background,
 				ReadyDelay: c.ReadyDelay,
