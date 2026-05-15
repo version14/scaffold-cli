@@ -1,0 +1,42 @@
+{
+  "name": "monorepo_multi_2apps_typescript",
+  "flow_id": "init",
+  "answers": {
+    "project_name": "my-monorepo",
+    "monorepo_type": "multi",
+    "apps_count": [
+      {
+        "app-name": "api",
+        "stack": "typescript",
+        "ts-backend-framework": "express",
+        "ts-backend-architecture": "clean-architecture",
+        "ts-backend-decorators-validation": true,
+        "ts-backend-validation-lib": "zod",
+        "ts-backend-formatter": "biome",
+        "ts-backend-linter": "biome",
+        "enable-db": false,
+        "enable-auth": false
+      },
+      {
+        "app-name": "web",
+        "stack": "typescript",
+        "ts-backend-framework": "express",
+        "ts-backend-architecture": "mvc-architecture",
+        "ts-backend-decorators-validation": false,
+        "ts-backend-formatter": "prettier",
+        "ts-backend-linter": "prettier",
+        "enable-db": false,
+        "enable-auth": false
+      }
+    ],
+    "confirm-generate": true
+  },
+  "expected_visited": [
+    "project_name",
+    "monorepo_type",
+    "apps_count",
+    "confirm-generate"
+  ],
+  "skip_post_commands": false,
+  "skip_test_commands": false
+}
