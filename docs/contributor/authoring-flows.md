@@ -119,36 +119,30 @@ For `Multiple: false` (default), each `Option.Next` controls where selecting tha
 
 ### LoopQuestion
 
-Repeat a body of sub-questions until the user stops. Returns `[]map[string]Answer` — one map per iteration.
+Collect a fixed body of sub-questions N times, where N comes from a preceding count input. Returns `[]map[string]Answer` — one map per iteration.
 
 ```go
 &flow.LoopQuestion{
-    QuestionBase: flow.QuestionBase{ID_: "services"},
-    Label:        "Add a service",
-    Body: []flow.Question{
-        &flow.TextQuestion{
-            QuestionBase: flow.QuestionBase{
-                ID_:   "service_name",
-                Next_: &flow.Next{End: true},
-            },
-            Label: "Service name",
-        },
-        &flow.TextQuestion{
-            QuestionBase: flow.QuestionBase{
-                ID_:   "service_port",
-                Next_: &flow.Next{End: true},
-            },
-            Label:   "Port",
-            Default: "8080",
-        },
-    },
-    Continue: &flow.Next{Question: confirmGenerate},
+    QuestionBase: flow.QuestionBase{ID_: "apps_count"},
+    Label:        "Configure app",
+    Body:         buildPerAppBody(confirmGenerate), // []flow.Question
+    Continue:     &flow.Next{Question: confirmGenerate},
 }
 ```
 
-`Body` questions use `Next{End: true}` to signal the end of one iteration (not the end of the flow). After all body questions are answered, the TUI asks "Add another?" and loops if the user says yes.
+**How the TUI runs it:**
 
-The answer stored at `FlowContext.Answers["services"]` is `[]map[string]flow.Answer` — one element per iteration.
+1. A preceding `TextQuestion` asks how many times the body should repeat (e.g. "Number of apps"). Its answer is stored as a string at the loop question's ID.
+2. The `HuhFormRunner` renders the `Body` as a separate sub-form for each iteration and stores the collected answers.
+3. After all iterations complete, the `Continue` edge is rendered as a post-loop sub-form (not part of the body). This is how post-loop questions (e.g. `confirmGenerate`) appear after per-app questions without appearing between iterations.
+
+**Iteration count** is resolved by the engine from the answer at the loop question's own ID: it parses the string as an integer. If the answer is missing or non-numeric, the loop runs zero times.
+
+`Body` questions use `Next{End: true}` to signal the end of one iteration (not the end of the flow).
+
+The answer stored at `FlowContext.Answers["apps_count"]` is `[]map[string]interface{}` — one element per iteration.
+
+**Important:** Do not walk `Continue` in the form pre-walker. `Continue` is deferred to a post-loop sub-form by `HuhFormRunner`. Walking it would cause `confirmGenerate` to appear before the per-app body questions.
 
 ### IfQuestion
 
@@ -247,29 +241,54 @@ The Huh form runner pre-walks the entire graph and hides branches that are not c
 
 ## Loops
 
-Loop answers are stored as `[]map[string]flow.Answer`:
+Loop answers are stored under the loop question's ID. Depending on how they were collected (interactive TUI vs. JSON fixture replay), the raw type may be `[]map[string]interface{}` or `[]interface{}`. Always normalise before iterating:
 
 ```go
+// Normalise helper — handle both native and JSON-unmarshalled shapes.
+func extractIterations(raw interface{}) []map[string]interface{} {
+    switch v := raw.(type) {
+    case []map[string]interface{}:
+        return v
+    case []interface{}:
+        out := make([]map[string]interface{}, 0, len(v))
+        for _, item := range v {
+            if m, ok := item.(map[string]interface{}); ok {
+                out = append(out, m)
+            }
+        }
+        return out
+    }
+    return nil
+}
+
 // In your Generators resolver:
-servicesRaw, _ := s.Answers["services"].([]interface{})
-for i, iterRaw := range servicesRaw {
-    iter, _ := iterRaw.(map[string]interface{})
-    name, _ := iter["service_name"].(string)
-    // emit one Invocation per service
+func myGenerators(s *spec.ProjectSpec) []flows.Invocation {
+    invs := []flows.Invocation{{Name: "base_project"}}
+
+    iterations := extractIterations(s.Answers["apps_count"])
+    for i, iter := range iterations {
+        invs = append(invs, flows.Invocation{
+            Name: "typescript_base",
+            LoopStack: []flow.LoopFrame{
+                {QuestionID: "apps_count", Index: i, Answers: iter},
+            },
+        })
+    }
+    return invs
 }
 ```
 
-In the generator, loop frames are exposed through the scoped `ctx.Answers`:
+In the generator, loop frames are exposed through the scoped `ctx.Answers`. The executor merges global answers with the loop-frame answers, so the generator reads them identically regardless of whether it is inside a loop:
 
 ```go
-func (g *ServiceWriter) Generate(ctx *dotapi.Context) error {
-    name := ctx.Answers["service_name"].(string)
-    port := ctx.Answers["service_port"].(string)
-    // ...
+func (g *AppGenerator) Generate(ctx *dotapi.Context) error {
+    appName, _ := ctx.Answers["app-name"].(string)
+    // ctx.State is already scoped to apps/<appName>/ — write relative paths only.
+    return render.NewLocalFolderRenderer(ctx.State).Render(fs, ctx.Answers)
 }
 ```
 
-Each loop iteration becomes one `generator.Invocation` with a `LoopStack` entry that scopes the answers. See [authoring-generators.md](authoring-generators.md) for how generators consume loop frames.
+Each loop iteration becomes one `generator.Invocation` with a `LoopStack` entry. The executor scopes `ctx.State` via `VirtualProjectState.WithPrefix("apps/<app-name>")` so generators never need to construct app-prefixed paths themselves. See [authoring-generators.md — Loop generators](authoring-generators.md#loop-generators) for the full picture.
 
 ---
 
@@ -314,29 +333,31 @@ The resolver does not need to be exhaustive about transitive dependencies — `D
 
 ### Loop invocations
 
-For loop-based flows, emit one `Invocation` per loop frame:
+For loop-based flows, emit one `Invocation` per loop frame. Use the normalisation helper (see [Loops](#loops)) to handle both interactive and scripted-runner shapes:
 
 ```go
-func microservicesGenerators(s *spec.ProjectSpec) []flows.Invocation {
-    invs := []flows.Invocation{{Name: "base_project"}}
+func resolveAppGenerators(answers map[string]interface{}, loopStack []flow.LoopFrame) []flows.Invocation {
+    var invs []flows.Invocation
+    // Read per-iteration answers (falls back to global answers when not in a loop).
+    stack, _ := answers["stack"].(string)
+    if stack == "typescript" {
+        invs = append(invs, flows.Invocation{Name: "typescript_base", LoopStack: loopStack})
+    }
+    return invs
+}
 
-    servicesRaw, _ := s.Answers["services"].([]interface{})
-    for i, iterRaw := range servicesRaw {
-        iter, _ := iterRaw.(map[string]interface{})
-        name, _ := iter["service_name"].(string)
-        invs = append(invs, flows.Invocation{
-            Name: "service_writer",
-            LoopStack: []flow.LoopFrame{
-                {QuestionID: "services", Index: i, Answers: iter},
-            },
-        })
-        _ = name
+func multiAppGenerators(s *spec.ProjectSpec) []flows.Invocation {
+    invs := []flows.Invocation{{Name: "base_project"}, {Name: "monorepo_ts_workspaces"}}
+
+    for i, iter := range extractIterations(s.Answers["apps_count"]) {
+        loopStack := []flow.LoopFrame{{QuestionID: "apps_count", Index: i, Answers: iter}}
+        invs = append(invs, resolveAppGenerators(iter, loopStack)...)
     }
     return invs
 }
 ```
 
-The `LoopFrame.Answers` map is what the generator sees in `ctx.Answers` when it accesses loop-scoped keys.
+`LoopFrame.Answers` is merged with global answers by the executor before the generator runs. The executor also calls `VirtualProjectState.WithPrefix("apps/<app-name>")` so each generator invocation writes into the correct app directory automatically.
 
 ---
 
