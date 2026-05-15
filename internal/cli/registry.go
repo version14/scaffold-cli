@@ -31,6 +31,7 @@ import (
 	expresssharederrors "github.com/version14/dot/generators/express_shared_errors"
 	expressswaggerjsdoc "github.com/version14/dot/generators/express_swagger_jsdoc"
 	expresstestsetup "github.com/version14/dot/generators/express_test_setup"
+	monorepotsworkspaces "github.com/version14/dot/generators/monorepo_ts_workspaces"
 	pluginreposkeleton "github.com/version14/dot/generators/plugin_repo_skeleton"
 	postgresdockercompose "github.com/version14/dot/generators/postgres_docker_compose"
 	postgresenvexample "github.com/version14/dot/generators/postgres_env_example"
@@ -53,6 +54,7 @@ func builtinGeneratorEntries() []generator.Entry {
 		{Manifest: typescriptbase.Manifest, Generator: typescriptbase.New()},
 		{Manifest: reactapp.Manifest, Generator: reactapp.New()},
 		{Manifest: biomeconfig.Manifest, Generator: biomeconfig.New()},
+		{Manifest: monorepotsworkspaces.Manifest, Generator: monorepotsworkspaces.New()},
 		{Manifest: pluginreposkeleton.Manifest, Generator: pluginreposkeleton.New()},
 
 		// Backend architecture
