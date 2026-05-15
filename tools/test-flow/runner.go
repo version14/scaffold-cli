@@ -53,8 +53,9 @@ func (a *scriptedAdapter) Ask(q flow.Question, ctx *flow.FlowContext) (flow.Answ
 	return ans, nil
 }
 
-// askLoop iterates the loop body once per scripted iteration, returning a
-// []map[string]flow.Answer ready to be stored on FlowContext.Answers[loop.ID()].
+// askLoop runs the full body sub-graph for each scripted iteration using a
+// fresh FlowEngine. This mirrors HuhFormRunner.runLoopSubForms: conditional
+// questions in the body are followed/skipped based on the iteration's answers.
 func (a *scriptedAdapter) askLoop(loop *flow.LoopQuestion, ctx *flow.FlowContext) (flow.Answer, error) {
 	raw, ok := a.answers[loop.ID()]
 	if !ok {
@@ -66,25 +67,27 @@ func (a *scriptedAdapter) askLoop(loop *flow.LoopQuestion, ctx *flow.FlowContext
 	}
 
 	out := make([]map[string]flow.Answer, len(iters))
-	prev := a.answers
-	defer func() { a.answers = prev }()
 
 	for i, iter := range iters {
 		iterMap, ok := iter.(map[string]interface{})
 		if !ok {
 			return nil, fmt.Errorf("test-flow: loop %q iteration %d must be an object", loop.ID(), i)
 		}
-		// Layer the iteration's answers over the global ones so body-question
-		// lookups resolve correctly and outer answers stay reachable.
-		a.answers = mergeAnswerMaps(prev, iterMap)
 
-		iterAnswers := make(map[string]flow.Answer, len(loop.Body))
-		for _, body := range loop.Body {
-			bodyAns, err := a.Ask(body, ctx)
+		// Layer iteration answers over global ones; each body question lookup
+		// hits the iteration map first, then falls back to outer answers.
+		iterAdapter := &scriptedAdapter{answers: mergeAnswerMaps(a.answers, iterMap)}
+		iterEng := flow.NewEngine(iterAdapter)
+
+		iterAnswers := make(map[string]flow.Answer)
+		for _, bodyRoot := range loop.Body {
+			bodyCtx, err := iterEng.Run(bodyRoot)
 			if err != nil {
-				return nil, fmt.Errorf("loop %q iter %d: %w", loop.ID(), i, err)
+				return nil, fmt.Errorf("loop %q iter %d body: %w", loop.ID(), i, err)
 			}
-			iterAnswers[body.ID()] = bodyAns
+			for k, v := range bodyCtx.Answers {
+				iterAnswers[k] = v
+			}
 		}
 		out[i] = iterAnswers
 	}
